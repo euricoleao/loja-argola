@@ -1,7 +1,9 @@
 import * as Clipboard from "expo-clipboard";
 import { deleteDoc, doc, updateDoc } from "firebase/firestore";
+import { useContext } from "react";
 import { Alert, FlatList, StyleSheet, Text, ToastAndroid, TouchableOpacity, View } from "react-native";
 import QRCode from "react-native-qrcode-svg";
+import { AuthContext } from "../context/AuthContext";
 import { db } from "../firebase/config";
 
 
@@ -11,7 +13,8 @@ import { db } from "../firebase/config";
 
 
 export default function PedidoDetalheScreen({ route, navigation }) {
-    const isAdmin = false; // 🔒 troque para false para usuário normal
+    const { usuario } = useContext(AuthContext);
+  const isAdmin = usuario?.tipo === "admin";
 
     const { pedido } = route.params;
 

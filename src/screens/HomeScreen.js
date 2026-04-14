@@ -1,14 +1,15 @@
 
-import { collection, deleteDoc, doc, getDocs, onSnapshot, setDoc } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDocs, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
 import { useContext, useEffect, useState } from "react";
 import { Button, Dimensions, FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { db } from "../firebase/config";
 
+import { AuthContext } from "../context/AuthContext";
 import { CartContext } from "../context/CartContext";
 
 export default function HomeScreen({ navigation, setQuantidadeCarrinho }) {
-const isAdmin = false; // depois você liga isso ao login
-
+  const { usuario } = useContext(AuthContext) || {};
+  const isAdmin = usuario?.tipo === "admin";
 
   const [produtos, setProdutos] = useState([]);
   const [favoritos, setFavoritos] = useState([]);
@@ -93,6 +94,20 @@ const isAdmin = false; // depois você liga isso ao login
     });
   }
 
+  async function baixarEstoque(produto) {
+    try {
+      const novaQtd = (produto.quantidade || 0) - 1;
+
+      await updateDoc(doc(db, "products", produto.id), {
+        quantidade: novaQtd
+      });
+
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+
   const produtosFiltrados = produtos.filter(item =>
     item.nome.toLowerCase().includes(busca.toLowerCase())
   );
@@ -101,7 +116,7 @@ const isAdmin = false; // depois você liga isso ao login
 
   return (
 
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: "#f3ebe8" }}>
 
 
 
@@ -124,24 +139,29 @@ const isAdmin = false; // depois você liga isso ao login
         }}
 
         renderItem={({ item }) => (
-          
-//carrinho
 
-          
-          <TouchableOpacity
+         console.log(item.imagens),
+         <TouchableOpacity
 
             style={styles.card}
             onPress={() => navigation.navigate("Produto", { produto: item })}
           >
-         
+
 
             {/* 👇 LINHA COM NOME + FAVORITO */}
             <View style={{ position: "relative" }}>
 
-              {item.imagem ? (
-                <Image source={{ uri: item.imagem }} style={styles.imagem} />
+              {item.imagens?.[0] ? (
+                <Image
+                  source={{
+                    uri: item.imagens?.[0] || "https://via.placeholder.com/150"
+                  }}
+                  style={styles.imagem}
+                />
+                
               ) : (
                 <Text>Sem imagem</Text>
+                
               )}
 
               {/* ❤️ FAVORITO SOBRE A IMAGEM */}
@@ -155,45 +175,75 @@ const isAdmin = false; // depois você liga isso ao login
               </TouchableOpacity>
 
             </View>
+
+
             <Text style={styles.nome}>{item.nome}</Text>
             {item.precoPromo ? (
               <>
                 <Text style={styles.precoAntigo}>
-                  {formatarPreco(item.preco)}
+                  {formatarPreco(item.precoVenda)}
                 </Text>
 
                 <Text style={styles.precoPromo}>
                   {formatarPreco(item.precoPromo)}
                 </Text>
+
+
               </>
+
             ) : (
-              <Text style={styles.preco}>
-                {formatarPreco(item.preco)}
-              </Text>
+
+              <View style={{ position: "relative" }}>
+
+                <Text style={styles.precoVenda}>
+                  {formatarPreco(item.precoVenda)}
+                </Text>
+
+                <Text style={styles.qtd}>
+                  Qt: {item.quantidade || 0}
+
+                </Text>
+                {isAdmin && (
+                  <Text>Cód: {item.codigo}</Text>
+                )}
+
+              </View>
             )}
 
-            <Button
-              title="Comprar"
+
+
+            <TouchableOpacity style={[styles.botaoComprar, { backgroundColor: (item.quantidade || 0) <= 0 ? "#ccc" : "#e7a299" }  
+            
+          ]}
+              disabled={(item.quantidade || 0) <= 0}
+
+
               onPress={(e) => {
                 e.stopPropagation(); // evita abrir o produto
                 adicionarAoCarrinho(item);
+
+                if ((item.quantidade || 0) <= 0) {
+                  alert("Sem estoque ❌");
+                  return;
+                }
+
+                adicionarAoCarrinho(item);
+                baixarEstoque(item);
 
                 if (produtos.length === 0) {
                   return <Text>Carregando produtos...</Text>;
                 }
               }}
 
-            />
+            ><Text style={styles.textoBotao}>COMPRAR</Text></TouchableOpacity>
 
-
-          {isAdmin && (
-  <Button
-    title="Excluir"
-    color="red"
-    onPress={() => excluirProduto(item.id)}
-  />
-)}
-
+            {isAdmin && (
+              <Button
+                title="Excluir"
+                color="red"
+                onPress={() => excluirProduto(item.id)}
+              />
+            )}
           </TouchableOpacity>
         )}
 
@@ -226,6 +276,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     width: largura / 2 - 18,
     overflow: "hidden", // 👈 ESSENCIAL
+    elevation: 4, // Android sombra
   },
 
   imagem: {
@@ -265,14 +316,38 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   precoAntigo: {
-  textDecorationLine: "line-through",
-  color: "#999",
-  fontSize: 12
-},
+    textDecorationLine: "line-through",
+    color: "#999",
+    fontSize: 12
+  },
 
-precoPromo: {
-  color: "#e60023",
-  fontWeight: "bold",
-  fontSize: 16
-}
+  precoPromo: {
+    color: "#e60023",
+    fontWeight: "bold",
+    fontSize: 16
+  },
+  botaoComprar: {
+    backgroundColor: "#e7a299", // dourado
+    padding: 10,
+    borderRadius: 10,
+    marginTop: 8,
+    alignItems: "center"
+  },
+
+  textoBotao: {
+    color: "#a78834",
+    fontWeight: "bold"
+  },
+  qtd: {
+    position: "absolute",
+    bottom: 5,
+    right: 5,
+    backgroundColor: "#c48b9f",
+    color: "#fff",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    fontSize: 10
+  },
+  
 });

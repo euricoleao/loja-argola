@@ -1,15 +1,18 @@
 import { addDoc, collection } from "firebase/firestore";
 import { useContext, useState } from "react";
-import { Button, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Button, FlatList, Image, StyleSheet, Text, TextInput, ToastAndroid, TouchableOpacity, View } from "react-native";
 import QRCode from "react-native-qrcode-svg";
+import { AuthContext } from "../context/AuthContext";
 import { CartContext } from "../context/CartContext";
 import { db } from "../firebase/config";
-
-;
+import { formatarPreco } from "../utils/formatarPreco";
 
 
 
 export default function CartScreen() {
+
+  const { usuario } = useContext(AuthContext);
+  const isAdmin = usuario?.tipo === "admin";
 
   const [nomeCliente, setNomeCliente] = useState("");
   const [telefone, setTelefone] = useState("");
@@ -18,7 +21,6 @@ export default function CartScreen() {
 
   const {
     carrinho,
-    removerDoCarrinho,
     aumentarQuantidade,
     diminuirQuantidade,
     limparCarrinho
@@ -27,7 +29,7 @@ export default function CartScreen() {
 
   // 💰 TOTAL
   const total = carrinho.reduce((soma, item) => {
-    return soma + item.preco * item.quantidade;
+    return soma + item.precoVenda * item.quantidade;
   }, 0);
 
 
@@ -37,12 +39,7 @@ Nome: ${nomeCliente}
 Valor: R$ ${total}`;
 }
 
-  function formatarPreco(valor) {
-    return Number(valor).toLocaleString("pt-BR", {
-      style: "currency",
-      currency: "BRL"
-    });
-  }
+ 
 
   // 🛒 FINALIZAR COMPRA
   async function finalizarPedido() {
@@ -98,41 +95,47 @@ Valor: R$ ${total}`;
 
   }
 
+  function copiarPix() {
+    const chavePix = 'gisamori@gmail.com'; // 👈 coloque sua chave real
+
+    Clipboard.setStringAsync(chavePix);
+    ToastAndroid.show('Chave copiada!', ToastAndroid.SHORT);
+  }
+
+
 
 
   return (
     <View style={styles.container}>
-
       {/* LISTA */}
       <FlatList
         data={carrinho}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <View style={styles.card}>
+            <Image source={{ uri: item.imagens[0] }} style={styles.imagemProduto} />
 
-            <Text style={styles.nome}>{item.nome}</Text>
+            <View style={styles.infoProduto}>
+              <Text style={styles.nome}>{item.nome}</Text>
 
-            <View style={styles.linha}>
+              <View style={styles.linha}>
+                <Button title="-" onPress={() => diminuirQuantidade(item.id)} />
 
-              <Button title="-" onPress={() => diminuirQuantidade(item.id)} />
+                <Text style={styles.qtd}>{item.quantidade}</Text>
 
-              <Text style={styles.qtd}>{item.quantidade}</Text>
+                <Button title="+" onPress={() => aumentarQuantidade(item.id)} />
+              </View>
 
-              <Button title="+" onPress={() => aumentarQuantidade(item.id)} />
-
+              <Text style={styles.preco}>
+                {formatarPreco(item.precoVenda * item.quantidade)}
+              </Text>
             </View>
-
-            <Text style={styles.preco}>
-              {formatarPreco(item.preco * item.quantidade)}
-            </Text>
-
           </View>
         )}
       />
 
       {/* CLIENTE */}
       <View style={styles.boxCliente}>
-
         <Text style={styles.titulo}>Dados do Cliente</Text>
 
         <TextInput
@@ -156,179 +159,206 @@ Valor: R$ ${total}`;
           onChangeText={setEndereco}
           style={styles.input}
         />
-
       </View>
 
       {/* TOTAL + BOTÃO */}
       <View style={styles.footer}>
+        <Text style={styles.total}>Total: {formatarPreco(total)}</Text>
 
-        <Text style={styles.total}>
-          Total: {formatarPreco(total)}
+        <Text style={{ fontWeight: 'bold', marginTop: 10 }}>
+          Forma de pagamento:
         </Text>
 
-       <Text style={{ fontWeight: "bold", marginTop: 10 }}>
-  Forma de pagamento:
-</Text>
+        {formaPagamento === 'pix' && (
+          <View style={{ alignItems: 'center', marginTop: 20 }}>
+            <Text style={{ marginBottom: 10 }}>
+              Escaneie o QR Code para pagar
+            </Text>
 
-{formaPagamento === "pix" && (
-  <View style={{ alignItems: "center", marginTop: 20 }}>
+            <QRCode value={gerarPix()} size={200} />
 
-    <Text style={{ marginBottom: 10 }}>
-      Escaneie o QR Code para pagar
-    </Text>
+            {/* <Button
+              title="Já paguei"
+              onPress={() => alert('Aguardando confirmação do pagamento')}
+            /> */}
+            {/* 📋 BOTÃO COPIAR */}
+            <TouchableOpacity
+              style={{
+                marginTop: 10,
+                backgroundColor: '#2aeb5a',
+                padding: 10,
+                borderRadius: 8,
+              }}
+              onPress={copiarPix}
+            >
+              <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+                📋 Copiar chave PIX
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-    <QRCode
-      value={gerarPix()}
-      size={200}
-    />
+        <View style={{ flexDirection: 'row', marginVertical: 10 }}>
+          <TouchableOpacity
+            style={{
+              padding: 10,
+              backgroundColor: formaPagamento === 'pix' ? '#4CAF50' : '#ccc',
+              marginRight: 5,
+              borderRadius: 8,
+            }}
+            onPress={() => setFormaPagamento('pix')}
+          >
+            <Text>📲 PIX</Text>
+          </TouchableOpacity>
 
-    <Button
-  title="Já paguei"
-  onPress={() => alert("Aguardando confirmação do pagamento")}
-/>
+          <TouchableOpacity
+            style={{
+              padding: 10,
+              backgroundColor:
+                formaPagamento === 'dinheiro' ? '#4CAF50' : '#ccc',
+              marginRight: 8,
+              marginLeft: 5,
+              borderRadius: 5,
+            }}
+            onPress={() => setFormaPagamento('dinheiro')}
+          >
+            <Text>💵 Dinheiro</Text>
+          </TouchableOpacity>
 
-  </View>
-)}
+          <TouchableOpacity
+            style={{
+              padding: 10,
+              backgroundColor: formaPagamento === 'cartao' ? '#4CAF50' : '#ccc',
+              borderRadius: 8,
+              marginRight: 5,
+              marginLeft: 5,
+            }}
+            onPress={() => setFormaPagamento('cartao')}
+          >
+            <Text>💳 Cartão</Text>
+          </TouchableOpacity>
 
-<View style={{ flexDirection: "row", marginVertical: 10 }}>
-
-  <TouchableOpacity
-    style={{
-      padding: 10,
-      backgroundColor: formaPagamento === "pix" ? "#4CAF50" : "#ccc",
-      marginRight: 5,
-      borderRadius: 8
-    }}
-    onPress={() => setFormaPagamento("pix")}
-  >
-    <Text>📲 PIX</Text>
-  </TouchableOpacity>
-
-  <TouchableOpacity
-    style={{
-      padding: 10,
-      backgroundColor: formaPagamento === "dinheiro" ? "#4CAF50" : "#ccc",
-      marginRight: 5,
-      borderRadius: 8
-    }}
-    onPress={() => setFormaPagamento("dinheiro")}
-  >
-    <Text>💵 Dinheiro</Text>
-  </TouchableOpacity>
-
-  <TouchableOpacity
-    style={{
-      padding: 10,
-      backgroundColor: formaPagamento === "cartao" ? "#4CAF50" : "#ccc",
-      borderRadius: 8
-    }}
-    onPress={() => setFormaPagamento("cartao")}
-  >
-    <Text>💳 Cartão</Text>
-  </TouchableOpacity>
-
-</View>
+          <TouchableOpacity
+            style={{
+              marginLeft: 8,
+              backgroundColor: '#e05ec4',
+              padding: 10,
+              borderRadius: 8,
+            }}
+            onPress={() => alert('Aguardando confirmação do pagamento')}
+          >
+            <Text>Já paguei</Text>
+          </TouchableOpacity>
+        </View>
         <TouchableOpacity style={styles.botao} onPress={finalizarPedido}>
           <Text style={styles.textoBotao}>Finalizar Pedido</Text>
         </TouchableOpacity>
-         <Text>
-  Selecionado: {formaPagamento}
-</Text>
-
+        <Text>Selecionado: {formaPagamento}</Text>
       </View>
-     
-
     </View>
   );
 }
 
-// const styles = StyleSheet.create({
-//   input: {
-//     backgroundColor: "#fff",
-//     padding: 10,
-//     margin: 10,
-//     borderRadius: 10,
-//   }
-// });
+
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5"
+    backgroundColor: '#f5f5f5',
   },
 
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
     margin: 10,
     padding: 10,
     borderRadius: 10,
-    elevation: 2
+    elevation: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  imagemProduto: {
+    width: 70,
+    height: 70,
+    borderRadius: 10,
+    marginRight: 60,
+  },
+
+  infoProduto: {
+    flex: 1,
   },
 
   nome: {
     fontSize: 16,
-    fontWeight: "bold"
+    fontWeight: 'bold',
   },
 
   linha: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 5
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 5,
   },
 
   qtd: {
     marginHorizontal: 10,
-    fontSize: 16
+    fontSize: 16,
   },
 
   preco: {
     marginTop: 5,
-    color: "#e60023",
-    fontWeight: "bold"
+    color: '#e60023',
+    fontWeight: 'bold',
   },
 
   boxCliente: {
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
     margin: 10,
     padding: 10,
-    borderRadius: 10
+    borderRadius: 10,
   },
 
   titulo: {
-    fontWeight: "bold",
-    marginBottom: 5
+    fontWeight: 'bold',
+    marginBottom: 5,
   },
 
   input: {
-    backgroundColor: "#f2f2f2",
+    backgroundColor: '#f2f2f2',
     padding: 10,
     marginTop: 5,
-    borderRadius: 8
+    borderRadius: 8,
   },
 
   footer: {
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
     padding: 15,
     borderTopWidth: 1,
-    borderColor: "#ddd"
+    borderColor: '#ddd',
   },
 
   total: {
     fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10
+    fontWeight: 'bold',
+    marginBottom: 10,
   },
 
   botao: {
-    backgroundColor: "#e60023",
+    backgroundColor: '#e60023',
     padding: 15,
     borderRadius: 10,
-    alignItems: "center"
+    alignItems: 'center',
   },
 
   textoBotao: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 16
-  }
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+
+  Button: {
+    marginLeft: 10,
+    backgroundColor: '#2aeb5a',
+    padding: 10,
+    borderRadius: 8,
+  },
 });

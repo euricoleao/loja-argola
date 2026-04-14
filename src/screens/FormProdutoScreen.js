@@ -1,8 +1,7 @@
 import * as ImagePicker from "expo-image-picker";
 import { addDoc, collection } from "firebase/firestore";
 import { useState } from "react";
-import { Button, Image, Text, TextInput, TouchableOpacity, View } from "react-native";
-
+import { Alert, Button, FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 
 
 import { db } from "../firebase/config";
@@ -11,12 +10,36 @@ export default function FormProdutoScreen() {
     const [imagem, setImagem] = useState(null);
     const [preview, setPreview] = useState(null);
     const [nome, setNome] = useState("");
-    const [preco, setPreco] = useState("");
     const [quantidade, setQuantidade] = useState("");
     const [loading, setLoading] = useState(false);
+
+
+    const [lucro, setLucro] = useState("");
+    const [codigo, setCodigo] = useState("");
+    const [precoCompra, setPrecoCompra] = useState("");
+    const [precoVenda, setPrecoVenda] = useState("");
     const [precoPromo, setPrecoPromo] = useState("");
+    const [imagens, setImagens] = useState([]);
+
+    function gerarCodigo(nome) {
+        const prefixo = nome.substring(0, 2).toUpperCase();
+        const numero = Date.now().toString().slice(-4);
+
+        return prefixo + numero;
+    }
 
     // 📸 escolher imagem
+    function adicionarImagem(novaImagem) {
+        setImagens(prev => {
+            if (prev.length >= 4) {
+                Alert.alert("Limite", "Máximo de 4 imagens");
+                return prev;
+            }
+
+            return [...prev, novaImagem];
+        });
+    }
+
     async function escolherImagem() {
         let result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -24,83 +47,111 @@ export default function FormProdutoScreen() {
         });
 
         if (!result.canceled) {
-            setImagem(result.assets[0]);
-            setPreview(result.assets[0].uri);
+            adicionarImagem(result.assets[0]); // 👈 AQUI
         }
     }
+
+
+
 
     // ☁️ upload imagem
-    async function uploadImagem() {
-        const formData = new FormData();
+    async function uploadImagens() {
+        const urls = [];
 
-        formData.append("file", {
-            uri: imagem.uri,
-            type: "image/jpeg",
-            name: "produto.jpg"
-        });
+        for (let img of imagens) {
+            const formData = new FormData();
 
-        formData.append("upload_preset", "products");
-
-        const response = await fetch(
-            "https://api.cloudinary.com/v1_1/dnbcqe62j/image/upload",
-            {
-                method: "POST",
-                body: formData
-            }
-        );
-
-        const data = await response.json();
-        console.log("RESPOSTA CLOUDINARY:", data); // 👈 AQUI
-
-        return data.secure_url;
-    }
-
-    async function cadastrarProduto() {
-        try {
-            let urlImagem = "";
-
-            if (imagem) {
-                urlImagem = await uploadImagem();
-            }
-
-            await addDoc(collection(db, "products"), {
-                nome,
-                preco: Number(preco),
-                precoPromo: precoPromo ? Number(precoPromo) : null, // 👈 AQUI
-                quantidade: Number(quantidade),
-                imagem: urlImagem || "",
-                criadoEm: new Date()
+            formData.append("file", {
+                uri: img.uri,
+                type: "image/jpeg",
+                name: "produto.jpg"
             });
 
-            // ✅ LIMPAR CAMPOS
-            setNome("");
-            setPreco("");
-            setQuantidade("");
-            setImagem(null);
-            setPreview(null);
+            formData.append("upload_preset", "products");
 
-            alert("Produto cadastrado com sucesso!");
+            const response = await fetch(
+                "https://api.cloudinary.com/v1_1/dnbcqe62j/image/upload",
+                {
+                    method: "POST",
+                    body: formData
+                }
+            );
 
-        } catch (error) {
-            console.error(error);
-            alert("Erro ao cadastrar");
+            const data = await response.json();
+            urls.push(data.secure_url);
         }
+
+        return urls;
     }
+
+
+   async function cadastrarProduto() {
+    try {
+        const compra = Number(precoCompra) || 0;
+        const venda = Number(precoVenda) || 0;
+        const qtd = Number(quantidade) || 0;
+
+        const lucro = venda - compra;
+
+        if (imagens.length === 0) {
+            Alert.alert("Atenção", "Adicione pelo menos 1 imagem 📸");
+            return;
+        }
+
+        const imagensUrls = await uploadImagens();
+
+        await addDoc(collection(db, "products"), {
+            nome,
+            codigo,
+            precoCompra: compra,
+            precoVenda: venda,
+            lucro,
+            quantidade: qtd,
+            imagens: imagensUrls,
+            criadoEm: new Date()
+        });
+
+        Alert.alert("Sucesso", "Produto cadastrado 💎");
+
+        // limpar campos
+        setNome("");
+        setPrecoCompra("");
+        setPrecoVenda("");
+        setQuantidade("");
+        setPrecoPromo("");
+        setCodigo("");
+        setImagens([]); // 👈 CORRETO
+
+    } catch (error) {
+        console.error(error);
+        Alert.alert("Erro", "Erro ao cadastrar");
+    }
+}
     return (
         <View style={{ padding: 20 }}>
             <Text>Cadastro de Produto</Text>
 
             <TextInput
-                placeholder="Nome"
+                placeholder="Nome do produto"
                 value={nome}
                 onChangeText={setNome}
+                style={styles.input}
             />
 
             <TextInput
-                placeholder="Preço"
-                value={preco}
-                onChangeText={setPreco}
+                placeholder="Preço de compra"
+                value={precoCompra}
+                onChangeText={setPrecoCompra}
                 keyboardType="numeric"
+                style={styles.input}
+            />
+
+            <TextInput
+                placeholder="Preço de venda"
+                value={precoVenda}
+                onChangeText={setPrecoVenda}
+                keyboardType="numeric"
+                style={styles.input}
             />
 
             <TextInput
@@ -108,30 +159,109 @@ export default function FormProdutoScreen() {
                 value={quantidade}
                 onChangeText={setQuantidade}
                 keyboardType="numeric"
+                style={styles.input}
             />
 
             <TextInput
+                style={styles.input}
                 placeholder="Preço promocional (opcional)"
                 value={precoPromo}
                 onChangeText={setPrecoPromo}
                 keyboardType="numeric"
             />
-            <TouchableOpacity onPress={escolherImagem}>
-                <Text>Selecionar Imagem</Text>
+
+            <TextInput
+                placeholder="Código do produto (ex: BR001)"
+                value={codigo}
+                onChangeText={setCodigo}
+                style={styles.input}
+            />
+
+
+            <TouchableOpacity
+                onPress={escolherImagem}>
+
+                <Text style={styles.textoBotao}>Selecionar Imagem</Text>
             </TouchableOpacity>
 
-            {preview && (
-                <Image
-                    source={{ uri: preview }}
-                    style={{ width: 100, height: 100 }}
-                />
-            )}
+            <FlatList
+                data={imagens}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginTop: 10 }}
+                renderItem={({ item }) => (
+                    <Image
+                        source={{ uri: item.uri }}
+                        style={{
+                            width: 80,
+                            height: 80,
+                            marginRight: 10,
+                            borderRadius: 10,
+                            borderWidth: 1,
+                            borderColor: "#ddd"
+                        }}
+                    />
+                )}
+            />
+
+         
 
             <Button
+                style={styles.botaoSalvar}
                 title={loading ? "Salvando..." : "Cadastrar"}
                 onPress={cadastrarProduto}
                 disabled={loading}
             />
+
+
         </View>
     );
 }
+// criar stylos
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        padding: 20,
+        backgroundColor: "#f8f5f2"
+    },
+    input: {
+        backgroundColor: "#fff",
+        padding: 10,
+        marginBottom: 10,
+        borderRadius: 8
+    },
+    botaoEditar: {
+        backgroundColor: "blue",
+        padding: 8,
+        borderRadius: 8,
+        marginTop: 10
+    },
+    botaoExcluir: {
+        backgroundColor: "red",
+        padding: 8,
+        borderRadius: 8,
+        marginTop: 10
+    },
+    linha: {
+        backgroundColor: "#fff",
+        padding: 10,
+        marginTop: 5,
+        borderRadius: 10
+    },
+    botaoSalvar: {
+        backgroundColor: "#c48b9f",
+        padding: 10,
+        borderRadius: 8,
+        marginTop: 10,
+        marginBottom: 10,
+    },
+    textoBotao: {
+        color: "#302323",
+        textAlign: "center",
+        fontWeight: "bold",
+        marginBottom: 10,
+        backgroundColor: "#c48b9f",
+        padding: 10,
+        borderRadius: 8,
+    }
+});
