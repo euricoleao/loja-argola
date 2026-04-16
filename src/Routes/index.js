@@ -1,6 +1,6 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useContext, useState } from "react";
-import { Alert, Text, TouchableOpacity } from "react-native";
+import { Alert, Image, Text, TouchableOpacity } from "react-native";
 import { AuthContext } from "../context/AuthContext";
 
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -14,10 +14,13 @@ import Carrinho from "../screens/CartScreen";
 import DashboardScreen from "../screens/DashboardScreen";
 import EditarProdutoScreen from "../screens/EditarProdutoScreen";
 import EstoqueScreen from "../screens/EstoqueScreen";
+import FavoritosScreen from "../screens/FavoritosScreen";
 import ListaProdutosScreen from "../screens/ListaProdutosScreen";
 import Login from "../screens/LoginScreen";
 import PedidoDetalheScreen from "../screens/PedidoDetalheScreen";
 import PedidosScreen from "../screens/PedidosScreen";
+
+
 
 
 
@@ -30,6 +33,8 @@ const Stack = createNativeStackNavigator();
 
 // 🔹 STACK HOME
 function HomeStack({ setQuantidadeCarrinho }) {
+
+
 
     const { logout } = useContext(AuthContext);
 
@@ -52,10 +57,8 @@ function HomeStack({ setQuantidadeCarrinho }) {
 
             <Stack.Screen
                 name="HomeScreen"
-                options={{
-                    title: " Seja bem vinda a G-Joya 💎",
-                    headerTitleAlign: "center",
 
+                options={{
                     headerRight: () => (
                         <TouchableOpacity
                             onPress={() => {
@@ -63,25 +66,43 @@ function HomeStack({ setQuantidadeCarrinho }) {
                                 alert("clicou!");
                             }}
                             style={{
-                                marginRight: 15,
-                                backgroundColor: "red", // 👈 TESTE VISUAL
+                                marginRight: 0,
+                                backgroundColor: "#f8e1e7",
                                 padding: 10,
                                 borderRadius: 10
                             }}
                         >
-                            <Text style={{ color: "#fff" }}>SAIR</Text>
+                            <Text style={{ color: "#b6a724", fontWeight: "bold" }}>Sair</Text>
                         </TouchableOpacity>
                     ),
 
                     headerStyle: {
                         backgroundColor: "#fdf8f6"
                     },
-                    headerTitleStyle: {
-                        fontWeight: "bold",
-                        fontSize: 18,
-                        color: "#333"
-                    }
+                    headerTitle: () => (
+                        <Text style={{
+                            fontFamily: "Playfair", // 💎 SUA FONTE
+                            fontSize: 20,
+                            color: "#333",
+                            letterSpacing: 1
+                        }}>
+                            G-Joya 💎
+                        </Text>
+                    ),
+                    headerTitleAlign: "center",
+                    headerLeft: () => (
+                        <Image
+                            source={require("../../assets/images/logo-trans.png")}
+                            style={{
+                                width: 70,
+                                height: 60,
+                                marginLeft: 10,
+                                borderRadius: 20,
 
+                            }}
+                            resizeMode="contain"
+                        />
+                    ),
 
                 }}
             >
@@ -96,8 +117,21 @@ function HomeStack({ setQuantidadeCarrinho }) {
             <Stack.Screen
                 name="Produto"
                 component={ProductDetailScreen}
-                options={{ title: "Detalhes do Produto" }}
+                options={{
+                    title: "Detalhes do Produto",
+                    headerStyle: {
+                        backgroundColor: "#caa89a"
+                    },
+                    headerTitleStyle: {
+                        fontWeight: "bold",
+                        fontSize: 18,
+                        color: "#333"
+                    }
+                }}
             />
+
+
+
 
         </Stack.Navigator>
     );
@@ -114,7 +148,9 @@ function AdminStack() {
     }
 
     return (
-        <Stack.Navigator>
+        <Stack.Navigator
+
+        >
 
             <Stack.Screen
                 name="AdminHome"
@@ -159,7 +195,13 @@ function AdminStack() {
 // 🔹 STACK PEDIDOS (ESSENCIAL)
 function PedidosStack() {
     return (
-        <Stack.Navigator>
+        <Stack.Navigator
+            screenOptions={{
+                contentStyle: {
+                    backgroundColor: "transparent" // 👈 AQUI
+                }
+            }}
+        >
 
             <Stack.Screen
                 name="PedidosLista"
@@ -188,10 +230,15 @@ export default function Routes() {
                 tabBarInactiveTintColor: "#aaa",  // ⚪ cor quando inativo (cinza)
 
                 tabBarStyle: {
-                    backgroundColor: "#fff", // fundo do rodapé
+                    backgroundColor: "#f8e1e7", // fundo do rodapé
                     borderTopWidth: 0,
-                    elevation: 10,
-                    height: 60
+                    elevation: 8,
+                    shadowColor: "#000",
+                    shadowOpacity: 0.1,
+                    shadowRadius: 10
+                },
+                sceneContainerStyle: {
+                    backgroundColor: "transparent" // 👈 AQUI (ESSENCIAL)
                 }
             }}
         >
@@ -221,10 +268,26 @@ export default function Routes() {
                 name="Carrinho"
                 component={Carrinho}
                 options={{
-                    tabBarBadge: quantidadeCarrinho > 0 ? quantidadeCarrinho : null,
+                    headerTitle: "Meu Carrinho 🛍️",
+                    headerTitleAlign: "center",
+
+                    headerStyle: {
+                        backgroundColor: "#fdf2f5", // rosé claro
+                    },
+
+                    headerTitleStyle: {
+                        fontWeight: "bold",
+                        fontSize: 18,
+                        color: "#a06a7d",
+                    },
+
+                    headerShadowVisible: false, // remove linha feia
+
+
+
                     tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="cart" size={size} color={color} />
-                    )
+                        <Ionicons name="bag" size={size} color={color} />
+                    ),
                 }}
             />
 
@@ -239,6 +302,52 @@ export default function Routes() {
                 }}
             />
 
+            <Tab.Screen
+                name="Favoritos"
+             
+                component={FavoritosScreen}
+                options={{
+                    headerTitleAlign: "center",
+
+                    headerStyle: {
+                        backgroundColor: "#fdf2f5",
+                    },
+
+                    headerShadowVisible: false,
+
+                    // 🔥 LOGO COLADA NA ESQUERDA
+                    headerLeft: () => (
+                        <Image
+                            source={require( "../../assets/images/logo-trans.png")}
+                            style={{
+                                width: 150,
+                                height: 150,
+                                marginLeft: 10, // 👈 controla o quão colado fica
+                                borderRadius: 6,
+                                marginTop:20, // 👈 ajusta verticalmente
+                            }}
+                        />
+                    ),
+
+                    // 🔥 TÍTULO CENTRAL REAL
+                    headerTitle: () => (
+                        <Text style={{
+                            fontFamily: "Playfair", // 👈 sua fonte
+                            fontSize: 20,
+                            letterSpacing: 1,
+                            color: "#a06a7d",
+                            
+                        }}>
+                            Favoritos
+                        </Text>
+                    ),
+                     // 💖 ÍCONE DO BOTÃO (IMPORTANTE)
+    tabBarIcon: ({ color, size }) => (
+      <Ionicons name="heart" size={size} color={color} />
+    ),
+                }}
+            />
+            {/* "../../assets/images/logo-trans.png" */}
             {/* PEDIDOS */}
             {isAdmin && (
                 <Tab.Screen

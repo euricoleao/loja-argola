@@ -1,7 +1,9 @@
-import { useContext } from "react";
+import { LinearGradient } from "expo-linear-gradient";
+import { useContext, useState } from "react";
 import { Dimensions, FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { CartContext } from "../context/CartContext";
 import { formatarPreco } from "../utils/formatarPreco";
+
 
 
 export default function ProductDetailScreen({ route }) {
@@ -9,9 +11,15 @@ export default function ProductDetailScreen({ route }) {
   const { adicionarAoCarrinho } = useContext(CartContext);
   const { produto } = route.params;
   const largura = Dimensions.get("window").width;
+  const [indexAtual, setIndexAtual] = useState(0);
+  
 
   return (
 
+     <LinearGradient
+    colors={["#fdf2f5", "#f8d7e1", "#d4c4c8"]}
+    style={{ flex: 1 }}
+  >
     <View style={styles.container}>
 
      <FlatList
@@ -20,39 +28,40 @@ export default function ProductDetailScreen({ route }) {
    pagingEnabled
   showsHorizontalScrollIndicator={false}
   keyExtractor={(item, index) => index.toString()}
+  onMomentumScrollEnd={(event) => {
+  const index = Math.round(
+    event.nativeEvent.contentOffset.x / largura
+  );
+  setIndexAtual(index);
+}}
+
   renderItem={({ item }) => (
     <Image
       source={{ uri: item }}
       style={{
-         width: largura - 50, // largura da tela - padding
+         width: largura -45, // largura da tela - padding
         height: 500,
         borderRadius: 15,
-        marginRight: 10
-      }}
+       marginRight: 7,
+             }}
          resizeMode="cover"
     />
   )}
 />
-{/* <FlatList
-  data={produto.imagens || []}
-  horizontal
-  showsHorizontalScrollIndicator={false}
-  keyExtractor={(item, index) => index.toString()}
-
-  pagingEnabled // 👈 desliza por página (SUAVE)
-
-  decelerationRate="fast" // 👈 deixa mais fluido
-
-  snapToAlignment="center"
-  snapToInterval={260} // largura da imagem + margem
-
-  renderItem={({ item }) => (
-    <Image
-      source={{ uri: item }}
-      style={styles.imagem}
+<View style={{ flexDirection: "row", justifyContent: "center", marginTop: 10 }}>
+  {produto.imagens?.map((_, index) => (
+    <View
+      key={index}
+      style={{
+        width: indexAtual === index ? 10 : 8,
+        height: indexAtual === index ? 10 : 8,
+        borderRadius: 5,
+        backgroundColor: indexAtual === index ? "#c48b9f" : "#ccc",
+        margin: 4
+      }}
     />
-  )}
-/> */}
+  ))}
+</View>
 
       <Text style={styles.nome}>{produto.nome}</Text>
 
@@ -78,7 +87,7 @@ export default function ProductDetailScreen({ route }) {
       </TouchableOpacity>
 
     </View>
-
+</LinearGradient>
   );
 }
 
@@ -87,7 +96,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: "#fff"
+   
   },
 
   imagem: {
