@@ -11,6 +11,7 @@ import ProductDetailScreen from "../screens/ProductDetailScreen";
 
 import { Ionicons } from "@expo/vector-icons";
 import Carrinho from "../screens/CartScreen";
+import CheckoutScreen from "../screens/CheckoutScreen";
 import DashboardScreen from "../screens/DashboardScreen";
 import EditarProdutoScreen from "../screens/EditarProdutoScreen";
 import EstoqueScreen from "../screens/EstoqueScreen";
@@ -130,8 +131,7 @@ function HomeStack({ setQuantidadeCarrinho }) {
                 }}
             />
 
-
-
+             
 
         </Stack.Navigator>
     );
@@ -215,11 +215,16 @@ function PedidosStack() {
                 options={{ title: "Detalhes do Pedido" }}
             />
 
+            
+           
+
         </Stack.Navigator>
     );
 }
 
-export default function Routes() {
+
+
+function Tabs() {
     const [quantidadeCarrinho, setQuantidadeCarrinho] = useState(0);
     const { usuario } = useContext(AuthContext);
     const isAdmin = usuario?.tipo === "admin";
@@ -291,6 +296,8 @@ export default function Routes() {
                 }}
             />
 
+           
+
             {/* LOGIN */}
             <Tab.Screen
                 name="Login"
@@ -304,7 +311,7 @@ export default function Routes() {
 
             <Tab.Screen
                 name="Favoritos"
-             
+
                 component={FavoritosScreen}
                 options={{
                     headerTitleAlign: "center",
@@ -318,13 +325,13 @@ export default function Routes() {
                     // 🔥 LOGO COLADA NA ESQUERDA
                     headerLeft: () => (
                         <Image
-                            source={require( "../../assets/images/logo-trans.png")}
+                            source={require("../../assets/images/logo-trans.png")}
                             style={{
                                 width: 150,
                                 height: 150,
                                 marginLeft: 10, // 👈 controla o quão colado fica
                                 borderRadius: 6,
-                                marginTop:20, // 👈 ajusta verticalmente
+                                marginTop: 20, // 👈 ajusta verticalmente
                             }}
                         />
                     ),
@@ -336,15 +343,15 @@ export default function Routes() {
                             fontSize: 20,
                             letterSpacing: 1,
                             color: "#a06a7d",
-                            
+
                         }}>
                             Favoritos
                         </Text>
                     ),
-                     // 💖 ÍCONE DO BOTÃO (IMPORTANTE)
-    tabBarIcon: ({ color, size }) => (
-      <Ionicons name="heart" size={size} color={color} />
-    ),
+                    // 💖 ÍCONE DO BOTÃO (IMPORTANTE)
+                    tabBarIcon: ({ color, size }) => (
+                        <Ionicons name="heart" size={size} color={color} />
+                    ),
                 }}
             />
             {/* "../../assets/images/logo-trans.png" */}
@@ -367,6 +374,19 @@ export default function Routes() {
 
         </Tab.Navigator>
     );
+}
+
+// 🔥 ROUTES PRINCIPAL
+export default function Routes() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      
+      <Stack.Screen name="MainTabs" component={Tabs} />
+      
+      <Stack.Screen name="Checkout" component={CheckoutScreen} />
+
+    </Stack.Navigator>
+  );
 }
 
 

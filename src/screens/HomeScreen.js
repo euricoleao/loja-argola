@@ -1,5 +1,5 @@
 
-import { collection, deleteDoc, doc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
+import { collection, deleteDoc, doc, increment, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
 import { useContext, useEffect, useState } from "react";
 import { ActivityIndicator, Button, Dimensions, FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { db } from "../firebase/config";
@@ -119,7 +119,18 @@ export default function HomeScreen({ navigation, setQuantidadeCarrinho }) {
       console.error(error);
     }
   }
+  async function alterarEstoque(id, valor) {
+    try {
+      const ref = doc(db, "products", id);
 
+      await updateDoc(ref, {
+        quantidade: increment(valor)
+      });
+
+    } catch (error) {
+      console.error(error);
+    }
+  }
 
   const produtosFiltrados = produtos.filter(item =>
     item.nome.toLowerCase().includes(busca.toLowerCase())
@@ -326,7 +337,43 @@ export default function HomeScreen({ navigation, setQuantidadeCarrinho }) {
                 ><Text style={styles.textoBotao}>COMPRAR</Text></TouchableOpacity>
 
                 {/*Fim do  Botão Comprar */}
+                   {isAdmin && (
+                <View>
 
+                  <View style={styles.estoqueContainer}>
+                    <TouchableOpacity
+                      style={styles.btnEstoque}
+                      onPress={() => {
+                        if ((item.quantidade || 0) <= 0) return;
+                        console.log(item.id);
+                        alterarEstoque(item.id, -1);
+                      }}
+                    >
+                      <Text>-</Text>
+                    </TouchableOpacity>
+
+                    <Text style={styles.qtdEstoque}>
+                      {item.quantidade}
+                    </Text>
+
+                    <TouchableOpacity
+                      style={styles.btnEstoque}
+                      onPress={() => alterarEstoque(item.id, 1)}
+                    >
+                      <Text>+</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* BOTÃO EXTRA */}
+                  <TouchableOpacity
+                    style={styles.btnAddRapido}
+                    onPress={() => alterarEstoque(item.id, 10)}
+                  >
+                    <Text style={{ color: "#fff" }}>+10</Text>
+                  </TouchableOpacity>
+
+                </View>
+              )}
 
                 {isAdmin && (
                   <Button
@@ -336,6 +383,9 @@ export default function HomeScreen({ navigation, setQuantidadeCarrinho }) {
                   />
                 )}
               </TouchableOpacity>
+
+              {/* Botao add estoque */}
+
             </Animated.View>
           )}
 
@@ -492,19 +542,64 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   semEstoque: {
-  position: "absolute",
-  top: 10,
-  left: 10,
-  backgroundColor: "rgba(231, 76, 60, 0.9)",
-  paddingHorizontal: 10,
-  paddingVertical: 4,
-  borderRadius: 8
-},
+    position: "absolute",
+    top: 10,
+    left: 10,
+    backgroundColor: "rgba(231, 76, 60, 0.9)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8
+  },
 
-textoSemEstoque: {
-  color: "#fff",
-  fontSize: 10,
-  fontWeight: "bold"
-},
+  textoSemEstoque: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "bold"
+  },
+  btnAddEstoque: {
+    backgroundColor: "#c48b9f",
+    padding: 8,
+    borderRadius: 8,
+    marginTop: 8,
+    alignItems: "center",
+    marginBottom: 10
+  },
 
+  textoAddEstoque: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 14,
+
+  },
+  estoqueContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 8
+  },
+
+  btnEstoque: {
+    backgroundColor: "#f8e1e7",
+    padding: 6,
+    borderRadius: 8,
+    width: 40,
+    alignItems: "center",
+   
+  },
+
+  qtdEstoque: {
+    marginHorizontal: 10,
+    fontWeight: "bold",
+    color: "#333"
+    
+  },
+
+  btnAddRapido: {
+    backgroundColor: "#c48b9f",
+    padding: 6,
+    borderRadius: 6,
+    marginTop: 5,
+    alignItems: "center",
+    marginBottom: 10
+  },
 });

@@ -181,24 +181,7 @@ Valor: R$ ${total}`;
           Ver produtos
         </Text>
       </TouchableOpacity>
-        {/* <Text style={styles.iconeVazio}>🛍️</Text>
-
-        <Text style={styles.tituloVazio}>
-          Seu carrinho está vazio
-        </Text>
-
-        <Text style={styles.subtituloVazio}>
-          Adicione produtos para continuar
-        </Text>
-
-        <TouchableOpacity
-          style={styles.botaoVoltar}
-          onPress={() => navigation.navigate("Home")}
-        >
-          <Text style={styles.textoBotaoVoltar}>
-            Ver produtos
-          </Text>
-        </TouchableOpacity> */}
+      
         <View style={{ flex: 1 }}>
 
           {/* LISTA */}
@@ -368,7 +351,7 @@ Valor: R$ ${total}`;
           </View>
 
           {/* BOTÃO DE FINALIZAR PEDIDO */}
-          <TouchableOpacity style={styles.botao} onPress={finalizarPedido}>
+          <TouchableOpacity style={styles.botao}onPress={() => navigation.push("Checkout")}>
             <Text style={styles.textoBotao}>Finalizar Pedido</Text>
           </TouchableOpacity>
           <Text>Selecionado: {formaPagamento}</Text>
