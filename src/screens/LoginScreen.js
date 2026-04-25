@@ -1,11 +1,17 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useContext, useState } from 'react';
 import {
   ImageBackground,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  TouchableWithoutFeedback,
+  View
 } from 'react-native';
 
 import {
@@ -22,18 +28,25 @@ export default function LoginScreen({ navigation }) {
 
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [toast, setToast] = useState({
+    visible: false,
+    message: "",
+    tipo: "sucesso" // 👈 ADICIONE ISSO
+  });
+
 
   // 🔐 LOGIN REAL
   async function entrar() {
     const emailLimpo = email.trim();
 
     if (!emailLimpo || !emailLimpo.includes('@')) {
-      alert('Digite um email válido');
+      mostrarToast('Digite um email válido', 'erro');
       return;
     }
 
     if (!senha) {
-      alert('Digite a senha');
+      mostrarToast('Digite a senha', 'erro');
       return;
     }
 
@@ -55,11 +68,11 @@ export default function LoginScreen({ navigation }) {
       navigation.navigate('Home');
     } catch (error) {
       console.error(error);
-      alert('Email ou senha inválidos');
+      mostrarToast('Email ou senha inválidos', 'erro');
     }
- alert('Login realizado com sucesso!');
-     setEmail('');
-      setSenha('');
+    mostrarToast('Login realizado com sucesso!');
+    setEmail('');
+    setSenha('');
   }
 
   // 🆕 CADASTRO
@@ -80,7 +93,7 @@ export default function LoginScreen({ navigation }) {
         criadoEm: new Date(),
       });
 
-      alert('Cadastro realizado com sucesso!');
+      mostrarToast('Cadastro realizado com sucesso!');
 
       // 👇 loga automaticamente após cadastro
       await signInWithEmailAndPassword(auth, email.trim(), senha);
@@ -90,59 +103,138 @@ export default function LoginScreen({ navigation }) {
       navigation.navigate('Home');
     } catch (error) {
       if (error.code === 'auth/email-already-in-use') {
-        alert('Este e-mail já está cadastrado. Tente fazer login.');
+        mostrarToast('Este e-mail já está cadastrado. Tente fazer login.', 'erro');
       } else if (error.code === 'auth/invalid-email') {
-        alert('Digite um e-mail válido.');
+        mostrarToast('Digite um e-mail válido.', 'erro');
       } else if (error.code === 'auth/weak-password') {
-        alert('A senha deve ter pelo menos 6 caracteres.');
+        mostrarToast('A senha deve ter pelo menos 6 caracteres.', 'erro');
       } else {
         console.log(error);
-        alert('Erro ao cadastrar.');
+        mostrarToast('Erro ao cadastrar.', 'erro');
       }
     }
   }
+  function mostrarToast(msg, tipo = "sucesso") {
+    setToast({ visible: true, message: msg, tipo });
+
+    setTimeout(() => {
+      setToast({ visible: false, message: "", tipo: "sucesso" });
+    }, 2000);
+  }
+
+
   return (
-    <ImageBackground
-      source={require('../../assets/images/bach-g3.jpeg')}
-      style={styles.background}
-      resizeMode="cover"
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <View style={styles.overlay}>
-        <Text style={styles.titulo}>Login</Text>
 
-        <TextInput
-          placeholder="E-mail"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          placeholderTextColor="#E9D1CC"
-          style={styles.input}
-        />
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
 
-        <TextInput
-          placeholder="Senha"
-          placeholderTextColor="#E9D1CC"
-          value={senha}
-          onChangeText={setSenha}
-          secureTextEntry
-          style={styles.input}
-        />
-
-        {/* 🔐 BOTÃO LOGIN */}
-        <TouchableOpacity style={styles.botao} onPress={() => entrar()}>
-          <Text style={styles.botaoTexto}>Entrar</Text>
-        </TouchableOpacity>
-
-        {/* 🆕 BOTÃO CADASTRAR */}
-        <TouchableOpacity
-          style={[styles.botao, styles.botaoCadastro]}
-          onPress={cadastrar}
+        <ScrollView
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: "center",
+            
+          }}
+          keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.botaoTexto}>Cadastrar</Text>
-        </TouchableOpacity>
-      </View>
-    </ImageBackground>
+
+          <ImageBackground
+            source={require('../../assets/images/bach-g3.jpeg')}
+            style={styles.background}
+            resizeMode="cover"
+          >
+
+
+
+            <View style={styles.overlay}>
+              {toast.visible && (
+                <View style={[
+                  styles.toast,
+                  toast.tipo === "erro" && styles.toastErro
+                ]}>
+                  <Text style={styles.toastText}>
+                    {toast.tipo === "erro" ? "⚠️ " : "✅ "}
+                    {toast.message}
+                  </Text>
+                </View>
+              )}
+              <Text style={styles.titulo}>Login</Text>
+
+              <TextInput
+                placeholder="E-mail"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                placeholderTextColor="#E9D1CC"
+                style={styles.input}
+              />
+
+              <View style={{
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: 'rgba(255,255,255,0.18)',
+                borderWidth: 1,
+                borderColor: '#DDA99C',
+                color: '#FFF7F7',
+                borderRadius: 16,
+                paddingHorizontal: 10,
+                marginBottom: 15,
+                fontSize: 16,
+                height: 54,
+              }}>
+
+                <TextInput
+                  placeholder="Senha"
+                  secureTextEntry={!mostrarSenha}
+                  placeholderTextColor="#E9D1CC"
+                  style={{
+                    flex: 1,
+                    padding: 10,
+                    color: '#FFF7F7',
+                    fontSize: 16,
+
+                  }}
+                />
+
+                <TouchableOpacity onPress={() => setMostrarSenha(!mostrarSenha)}>
+                  <Ionicons
+                    name={mostrarSenha ? "eye-off" : "eye"}
+                    size={22}
+                    color="#a06a7d"
+                  />
+                </TouchableOpacity>
+
+              </View>
+
+
+
+              {/* 🔐 BOTÃO LOGIN */}
+              <TouchableOpacity style={styles.botao} onPress={() => entrar()}>
+                <Text style={styles.botaoTexto}>Entrar</Text>
+              </TouchableOpacity>
+               
+
+              {/* 🆕 BOTÃO CADASTRAR */}
+              <TouchableOpacity
+                style={[styles.botao, styles.botaoCadastro]}
+                onPress={cadastrar}
+              >
+                <Text style={styles.botaoTexto}>Cadastrar</Text>
+              </TouchableOpacity>
+               <Text style={styles.botaoAviso}>Primeiro acesso? digite email e senha e clique em cadastrar</Text>
+
+            </View>
+          </ImageBackground>
+
+
+        </ScrollView>
+
+      </TouchableWithoutFeedback>
+
+    </KeyboardAvoidingView>
   );
 }
 
@@ -171,6 +263,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 20,
     textAlign: 'center',
+    color: '#fff',
   },
 
   input: {
@@ -206,4 +299,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  toast: {
+    position: "absolute",
+    top: 60,
+    left: 20,
+    right: 20,
+    backgroundColor: "#c48b9f",
+    padding: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    zIndex: 999,
+    elevation: 10,
+  },
+
+  toastErro: {
+    backgroundColor: "#a06a7d"
+  },
+
+  toastText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  botaoAviso: {
+    textAlign: "center",
+    color: "#B68973",
+    fontSize: 17
+  }
 });

@@ -26,6 +26,7 @@ import PedidosScreen from "../screens/PedidosScreen";
 
 
 
+
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
@@ -299,15 +300,51 @@ function Tabs() {
            
 
             {/* LOGIN */}
-            <Tab.Screen
-                name="Login"
-                component={Login}
-                options={{
-                    tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="person" size={size} color={color} />
-                    )
-                }}
-            />
+           <Tab.Screen
+  name="Login"
+  component={Login}
+  options={{
+    headerTitleAlign: "center",
+     headerShown: false,
+    headerStyle: {
+      backgroundColor: "#fdf2f5",
+    },
+
+    headerShadowVisible: false,
+
+    // 🔥 LOGO NA ESQUERDA
+    headerLeft: () => (
+      <Image
+        source={require("../../assets/images/logo-trans.png")}
+        style={{
+          width: 70,
+          height: 60,
+          marginLeft: 10,
+        }}
+        resizeMode="contain"
+      />
+    ),
+
+    // 🔥 TÍTULO CENTRAL COM SUA FONTE
+    headerTitle: () => (
+      <Text
+        style={{
+          fontFamily: "Playfair",
+          fontSize: 20,
+          letterSpacing: 1,
+          color: "#a06a7d",
+        }}
+      >
+        Entrar
+      </Text>
+    ),
+
+    // 🔥 ÍCONE ABA
+    tabBarIcon: ({ color, size }) => (
+      <Ionicons name="person" size={size} color={color} />
+    ),
+  }}
+/>
 
             <Tab.Screen
                 name="Favoritos"

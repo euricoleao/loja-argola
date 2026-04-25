@@ -1,13 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
-import { addDoc, collection } from "firebase/firestore";
 import { useContext, useLayoutEffect, useState } from "react";
-import { Alert, FlatList, Image, StyleSheet, Text, ToastAndroid, TouchableOpacity, View } from "react-native";
-import QRCode from "react-native-qrcode-svg";
+import { Alert, FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { AuthContext } from "../context/AuthContext";
 import { CartContext } from "../context/CartContext";
-import { db } from "../firebase/config";
 import { formatarPreco } from "../utils/formatarPreco";
 
 
@@ -48,11 +45,7 @@ export default function CartScreen() {
   }, 0);
 
 
-  function gerarPix() {
-    return `Pagamento PIX
-Nome: ${nomeCliente}
-Valor: R$ ${total}`;
-  }
+
 
   //TOAST
   function mostrarToast(msg) {
@@ -64,58 +57,53 @@ Valor: R$ ${total}`;
   }
 
   // 🛒 FINALIZAR COMPRA
-  async function finalizarPedido() {
+  // async function finalizarPedido() {
 
-    // Validação simples
-    if (!nomeCliente) {
-      alert("Digite o nome do cliente");
-      return;
-    }
+  //   // Validação simples
+  //   if (!nomeCliente) {
+  //     alert("Digite o nome do cliente");
+  //     return;
+  //   }
 
-    if (!endereco) {
-      alert("Digite o endereço");
-      return;
-    }
-
-
-    if (carrinho.length === 0) {
-      alert("Carrinho vazio!");
-      return;
-    }
-
-    try {
-      await addDoc(collection(db, "pedidos"), {
-        produtos: carrinho || [],
-        total: total || 0,
-        formaPagamento: formaPagamento,
-        statusPagamento: "pendente",
-        data: new Date()
-      });
+  //   if (!endereco) {
+  //     alert("Digite o endereço");
+  //     return;
+  //   }
 
 
+  //   if (carrinho.length === 0) {
+  //     alert("Carrinho vazio!");
+  //     return;
+  //   }
 
-      alert("Pedido realizado com sucesso! 🧾");
-
-      limparCarrinho(); // limpa carrinho
-      setNomeCliente("");
-      setTelefone("");
-      setEndereco("");
-      setFormaPagamento("pix");
-
-    } catch (error) {
-      console.error(error);
-      alert("Erro ao finalizar pedido");
-    }
+  //   try {
+  //     await addDoc(collection(db, "pedidos"), {
+  //       produtos: carrinho || [],
+  //       total: total || 0,
+  //       formaPagamento: formaPagamento,
+  //       statusPagamento: "pendente",
+  //       data: new Date()
+  //     });
 
 
-  }
 
-  function copiarPix() {
-    const chavePix = 'gisamori@gmail.com'; // 👈 coloque sua chave real
+  //     alert("Pedido realizado com sucesso! 🧾");
 
-    Clipboard.setStringAsync(chavePix);
-    ToastAndroid.show('Chave copiada!', ToastAndroid.SHORT);
-  }
+  //     limparCarrinho(); // limpa carrinho
+  //     setNomeCliente("");
+  //     setTelefone("");
+  //     setEndereco("");
+  //     setFormaPagamento("pix");
+
+  //   } catch (error) {
+  //     console.error(error);
+  //     alert("Erro ao finalizar pedido");
+  //   }
+
+
+  // }
+
+
 
 
 
@@ -143,12 +131,7 @@ Valor: R$ ${total}`;
 
   if (carrinho.length === 0) {
     return (
-
-
       <LinearGradient
-
-
-
         colors={["#fdf2f5", "#f8d7e1", "#d4c4c8"]}
         style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
       >
@@ -165,209 +148,197 @@ Valor: R$ ${total}`;
         )}
         <Text style={styles.iconeVazio}>🛍️</Text>
 
-      <Text style={styles.tituloVazio}>
-        Seu carrinho está vazio
-      </Text>
-
-      <Text style={styles.subtituloVazio}>
-        Adicione produtos para continuar
-      </Text>
-
-      <TouchableOpacity
-        style={styles.botaoVoltar}
-        onPress={() => navigation.navigate("Home")}
-      >
-        <Text style={styles.textoBotaoVoltar}>
-          Ver produtos
+        <Text style={styles.tituloVazio}>
+          Seu carrinho está vazio
         </Text>
-      </TouchableOpacity>
-      
-        <View style={{ flex: 1 }}>
 
-          {/* LISTA */}
-          <FlatList
-            data={carrinho}
-            keyExtractor={(item) => item.id}
+        <Text style={styles.subtituloVazio}>
+          Adicione produtos para continuar
+        </Text>
 
-            renderItem={({ item }) => (
-              <View style={styles.card}>
-
-
-
-                <TouchableOpacity
-                  style={styles.btnRemover}
-                  onPress={() => {
-                    Alert.alert(
-                      "Remover item",
-                      "Deseja remover este produto?",
-                      [
-                        { text: "Cancelar", style: "cancel" },
-                        { text: "Remover", onPress: () => removerDoCarrinho(item.id) }
-                      ]
-                    );
-                  }}
-                >
-                  <Ionicons name="trash-outline" size={18} color="#c48b9f" />
-                </TouchableOpacity>
-
-                <Image
-                  source={{ uri: item.imagens?.[0] }}
-                  style={styles.imagem}
-                />
-
-                <View style={{ flex: 1, marginLeft: 40 }}>
-                  <Text style={styles.nome}>{item.nome}</Text>
-
-                  <Text style={styles.preco}>
-                    {formatarPreco(item.precoVenda)}
-                  </Text>
-
-                  {/* QUANTIDADE */}
-                  <View style={styles.qtdContainer}>
-                    <TouchableOpacity style={styles.btnQtd}
-                      onPress={() => diminuirQuantidade(item.id)}
-                    >
-                      <Text>-</Text>
-                    </TouchableOpacity>
-
-                    <Text style={styles.qtd}>{item.quantidade}</Text>
-
-                    <TouchableOpacity style={styles.btnQtd}
-                      onPress={() => aumentarQuantidade(item.id)}
-                    >
-                      <Text>+</Text>
-                    </TouchableOpacity>
-
-                  </View>
-                </View>
-
-              </View>
-            )}
-
-          />
-
-
-
-        </View>
-
-
-        {/* TOTAL + BOTÃO */}
-        <View style={styles.footer}>
-          <Text style={styles.total}>Total: {formatarPreco(total)}</Text>
-
-          <Text style={{ fontWeight: 'bold', marginTop: 10 }}>
-            Forma de pagamento:
+        <TouchableOpacity
+          style={styles.botaoVoltar}
+          onPress={() => navigation.navigate("Home")}
+        >
+          <Text style={styles.textoBotaoVoltar}>
+            Ver produtos
           </Text>
+        </TouchableOpacity>
 
-          {formaPagamento === 'pix' && (
-            <View style={{ alignItems: 'center', marginTop: 20 }}>
-              <Text style={{ marginBottom: 10 }}>
-                Escaneie o QR Code para pagar
-              </Text>
+      </LinearGradient>
+    );
+  }
 
-              <QRCode value={gerarPix()} size={200} />
+  return (
+    <LinearGradient
+      colors={["#fdf2f5", "#f8d7e1", "#d4c4c8"]}
+      style={{ flex: 1 }}
+    >
+      <View style={{ flex: 1 }}>
+
+        {/* LISTA */}
+        <FlatList
+          data={carrinho}
+          keyExtractor={(item) => item.id}
+
+          renderItem={({ item }) => (
+            <View style={styles.card}>
 
 
 
               <TouchableOpacity
-                style={{
-                  marginTop: 10,
-                  backgroundColor: "#c48b9f",
-                  padding: 10,
-                  borderRadius: 8,
-                  color: "#fff"
+                style={styles.btnRemover}
+                onPress={() => {
+                  Alert.alert(
+                    "Remover item",
+                    "Deseja remover este produto?",
+                    [
+                      { text: "Cancelar", style: "cancel" },
+                      { text: "Remover", onPress: () => removerDoCarrinho(item.id) }
+                    ]
+                  );
                 }}
-                onPress={copiarPix}
               >
-                <Text style={{ color: '#fff', fontWeight: 'bold' }}>
-                  📋 Copiar chave PIX
-                </Text>
+                <Ionicons name="trash-outline" size={18} color="#c48b9f" />
               </TouchableOpacity>
+
+              <Image
+                source={{ uri: item.imagens?.[0] }}
+                style={styles.imagem}
+              />
+
+              <View style={{ flex: 1, marginLeft: 40 }}>
+                <Text style={styles.nome}>{item.nome}</Text>
+
+                <Text style={styles.preco}>
+                  {formatarPreco(item.precoVenda)}
+                </Text>
+
+                {/* QUANTIDADE */}
+                <View style={styles.qtdContainer}>
+                  <TouchableOpacity style={styles.btnQtd}
+                    onPress={() => diminuirQuantidade(item.id)}
+                  >
+                    <Text>-</Text>
+                  </TouchableOpacity>
+
+                  <Text style={styles.qtd}>{item.quantidade}</Text>
+
+                  <TouchableOpacity style={styles.btnQtd}
+                    onPress={() => aumentarQuantidade(item.id)}
+                  >
+                    <Text>+</Text>
+                  </TouchableOpacity>
+
+                </View>
+              </View>
+
             </View>
           )}
 
-          <View style={{ flexDirection: 'row', marginVertical: 10 }}>
+        />
 
-            {/* PAGAMENTO EM PIX */}
-            <TouchableOpacity
-              style={[
-                styles.btnPagamento,
-                formaPagamento === 'pix' && styles.btnAtivo
-              ]}
-              onPress={() => setFormaPagamento('pix')}
-            >
-              <Text style={[
-                styles.textoPagamento,
-                formaPagamento === 'pix' && styles.textoAtivo
-              ]}>
-                📲 PIX
-              </Text>
-            </TouchableOpacity>
 
-            {/* PAGAMENTO EM DINHEIRO */}
-            <TouchableOpacity
-              style={[
-                styles.btnPagamento,
-                formaPagamento === 'dinheiro' && styles.btnAtivo
-              ]}
-              onPress={() => setFormaPagamento('dinheiro')}
-            >
-              <Text style={[
-                styles.textoPagamento,
-                formaPagamento === 'dinheiro' && styles.textoAtivo
-              ]}>
-                📲 Dinheiro
-              </Text>
-            </TouchableOpacity>
 
-            {/* PAGAMENTO EM CARTÃO */}
-            <TouchableOpacity
-              style={[
-                styles.btnPagamento,
-                formaPagamento === 'cartao' && styles.btnAtivo
-              ]}
-              onPress={() => setFormaPagamento('cartao')}
-            >
-              <Text style={[
-                styles.textoPagamento,
-                formaPagamento === 'cartao' && styles.textoAtivo
-              ]}>
-                📲 Cartão
-              </Text>
-            </TouchableOpacity>
+      </View>
 
-            {/* BOTÃO "JÁ PAGUEI" APENAS PARA PIX */}
-            <TouchableOpacity
-              style={{
-                marginLeft: 8,
-                backgroundColor: "#a06a7d",
-                padding: 10,
-                borderRadius: 8,
-              }}
-              onPress={() => alert('Aguardando confirmação do pagamento')}
-            >
-              <Text>Já paguei</Text>
-            </TouchableOpacity>
-          </View>
 
-          {/* BOTÃO DE FINALIZAR PEDIDO */}
-          <TouchableOpacity style={styles.botao}onPress={() => navigation.push("Checkout")}>
-            <Text style={styles.textoBotao}>Finalizar Pedido</Text>
+      {/* TOTAL + BOTÃO */}
+      <View style={styles.footer}>
+        <Text style={styles.total}>Total: {formatarPreco(total)}</Text>
+
+        <Text style={{ fontWeight: 'bold', marginTop: 10 }}>
+          Forma de pagamento:
+        </Text>
+
+
+        <View style={{ flexDirection: 'row', marginVertical: 10 }}>
+
+          {/* PAGAMENTO EM PIX */}
+          <TouchableOpacity
+            style={[
+              styles.btnPagamento,
+              formaPagamento === 'pix' && styles.btnAtivo
+            ]}
+            onPress={() => setFormaPagamento('pix')}
+          >
+            <Text style={[
+              styles.textoPagamento,
+              formaPagamento === 'pix' && styles.textoAtivo
+            ]}>
+              📲 PIX
+            </Text>
           </TouchableOpacity>
-          <Text>Selecionado: {formaPagamento}</Text>
+
+          {/* PAGAMENTO EM DINHEIRO */}
+          <TouchableOpacity
+            style={[
+              styles.btnPagamento,
+              formaPagamento === 'dinheiro' && styles.btnAtivo
+            ]}
+            onPress={() => setFormaPagamento('dinheiro')}
+          >
+            <Text style={[
+              styles.textoPagamento,
+              formaPagamento === 'dinheiro' && styles.textoAtivo
+            ]}>
+              📲 Dinheiro
+            </Text>
+          </TouchableOpacity>
+
+          {/* PAGAMENTO EM CARTÃO */}
+          <TouchableOpacity
+            style={[
+              styles.btnPagamento,
+              formaPagamento === 'cartao' && styles.btnAtivo
+            ]}
+            onPress={() => setFormaPagamento('cartao')}
+          >
+            <Text style={[
+              styles.textoPagamento,
+              formaPagamento === 'cartao' && styles.textoAtivo
+            ]}>
+              📲 Cartão
+            </Text>
+          </TouchableOpacity>
+
+          {/* BOTÃO "JÁ PAGUEI" APENAS PARA PIX */}
+          <TouchableOpacity
+            style={{
+              marginLeft: 8,
+              backgroundColor: "#a06a7d",
+              padding: 10,
+              borderRadius: 8,
+            }}
+            onPress={() => alert('Aguardando confirmação do pagamento')}
+          >
+            <Text>Já paguei</Text>
+          </TouchableOpacity>
         </View>
 
-      </LinearGradient>
+        {/* BOTÃO DE FINALIZAR PEDIDO */}
+        <TouchableOpacity style={styles.botao} 
+        onPress={() => {
+          navigation.navigate("Checkout", {
+            formaPagamento: formaPagamento
+          });
+        }}>
+            <Text style={styles.textoBotao}>Finalizar Pedido</Text>
+      </TouchableOpacity>
+      <Text>Selecionado: {formaPagamento}</Text>
+    </View>
+
+      </LinearGradient >
 
     );
-  }
 }
 
 
 
 
+
 const styles = StyleSheet.create({
- 
+
 
 
 
@@ -503,7 +474,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     elevation: 3
   },
- 
+
   btnPagamento: {
     paddingVertical: 10,
     paddingHorizontal: 12,
@@ -555,26 +526,26 @@ const styles = StyleSheet.create({
   },
 
   toast: {
-  position: "absolute",
-  top: 60,
-  left: 20,
-  right: 20,
-  backgroundColor: "#c48b9f",
-  padding: 14,
-  borderRadius: 12,
-  alignItems: "center",
-  zIndex: 999,
-  elevation: 10,
-},
+    position: "absolute",
+    top: 60,
+    left: 20,
+    right: 20,
+    backgroundColor: "#c48b9f",
+    padding: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    zIndex: 999,
+    elevation: 10,
+  },
 
-toastErro: {
-  backgroundColor: "#a06a7d"
-},
+  toastErro: {
+    backgroundColor: "#a06a7d"
+  },
 
-toastText: {
-  color: "#fff",
-  fontWeight: "bold",
-  fontSize: 14
-},
-  
+  toastText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 14
+  },
+
 });
