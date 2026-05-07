@@ -135,7 +135,7 @@ export default function LoginScreen({ navigation }) {
           contentContainerStyle={{
             flexGrow: 1,
             justifyContent: "center",
-            
+
           }}
           keyboardShouldPersistTaps="handled"
         >
@@ -190,12 +190,13 @@ export default function LoginScreen({ navigation }) {
                   placeholder="Senha"
                   secureTextEntry={!mostrarSenha}
                   placeholderTextColor="#E9D1CC"
+                  value={senha}
+                  onChangeText={setSenha}
                   style={{
                     flex: 1,
                     padding: 10,
                     color: '#FFF7F7',
                     fontSize: 16,
-
                   }}
                 />
 
@@ -215,7 +216,7 @@ export default function LoginScreen({ navigation }) {
               <TouchableOpacity style={styles.botao} onPress={() => entrar()}>
                 <Text style={styles.botaoTexto}>Entrar</Text>
               </TouchableOpacity>
-               
+
 
               {/* 🆕 BOTÃO CADASTRAR */}
               <TouchableOpacity
@@ -224,7 +225,7 @@ export default function LoginScreen({ navigation }) {
               >
                 <Text style={styles.botaoTexto}>Cadastrar</Text>
               </TouchableOpacity>
-               <Text style={styles.botaoAviso}>Primeiro acesso? digite email e senha e clique em cadastrar</Text>
+              <Text style={styles.botaoAviso}>Primeiro acesso? digite email e senha e clique em cadastrar</Text>
 
             </View>
           </ImageBackground>

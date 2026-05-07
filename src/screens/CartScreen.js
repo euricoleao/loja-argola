@@ -317,20 +317,21 @@ export default function CartScreen() {
         </View>
 
         {/* BOTÃO DE FINALIZAR PEDIDO */}
-        <TouchableOpacity style={styles.botao} 
-        onPress={() => {
-          navigation.navigate("Checkout", {
-            formaPagamento: formaPagamento
-          });
-        }}>
-            <Text style={styles.textoBotao}>Finalizar Pedido</Text>
-      </TouchableOpacity>
-      <Text>Selecionado: {formaPagamento}</Text>
-    </View>
+        <TouchableOpacity style={styles.botao}
+          onPress={() => {
+            navigation.navigate("Checkout", {
+              formaPagamento
+            });
+            console.log("ENVIANDO:", formaPagamento);
+          }}>
+          <Text style={styles.textoBotao}>Finalizar Pedido</Text>
+        </TouchableOpacity>
+        <Text>Selecionado: {formaPagamento}</Text>
+      </View>
 
-      </LinearGradient >
+    </LinearGradient >
 
-    );
+  );
 }
 
 

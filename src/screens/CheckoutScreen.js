@@ -1,5 +1,6 @@
 import axios from "axios";
-import * as Linking from "expo-linking";
+import * as Clipboard from 'expo-clipboard';
+import { addDoc, collection } from "firebase/firestore";
 import { useContext, useState } from "react";
 import {
     Image,
@@ -15,36 +16,44 @@ import {
     View
 } from "react-native";
 import { CartContext } from "../context/CartContext";
+import { db } from "../firebase/config";
 
 
 
 
-async function irParaPagamento(total) {
-  try {
-    const response = await axios.post(
-        "https://award-unlawful-throwing.ngrok-free.dev/criar-pagamento",
-      { total }
-    );
+// async function irParaPagamento(total) {
+//     try {
+//         const response = await axios.post(
+//             "https://award-unlawful-throwing.ngrok-free.dev/criar-pagamento",
+//             { total }
+//         );
 
-    const link = response.data.link;
+//         const link = response.data.link;
 
-    Linking.openURL(link);
+//         Linking.openURL(link);
 
-  } catch (error) {
-    console.log("Erro pagamento:", error);
-  }
-}
+//     } catch (error) {
+//         console.log("Erro pagamento:", error);
+//     }
+// }
 
 
-export default function CheckoutScreen({ navigation }) {
-
+export default function CheckoutScreen({ navigation, route }) {
+    console.log("ROUTE PARAMS:", route.params);
     const [cep, setCep] = useState("");
     const [loadingCep, setLoadingCep] = useState(false);
     const [numero, setNumero] = useState("");
+    const [mostrarPix, setMostrarPix] = useState(false);
     const [complementoNumero, setComplementoNumero] = useState("");
     const { carrinho, limparCarrinho } = useContext(CartContext);
-    const [formaPagamento, setFormaPagamento] = useState("pix");
-    // const [complemento, setComplemento] = useState("");
+
+    const [codigoPix, setCodigoPix] = useState("");
+
+    const formaInicial = route.params?.formaPagamento || "pix";
+
+
+    const [formaPagamento, setFormaPagamento] = useState(formaInicial);
+    console.log("FORMA NO CHECKOUT:", formaPagamento);
     const total = carrinho.reduce((soma, item) => {
         return soma + (item.precoVenda || 0) * (item.quantidade || 0);
     }, 0);
@@ -76,119 +85,157 @@ export default function CheckoutScreen({ navigation }) {
         setForm({ ...form, [campo]: valor });
     }
 
-    async function irParaPagamento(total) {
-  try {
-    const response = await axios.post(
-      "https://SEU-NGROK/criar-pagamento",
-      { total }
-    );
+    async function salvarPedido(status = "pago") {
+        try {
+            await addDoc(collection(db, "pedidos"), {
+                cliente: form.nome + " " + form.sobrenome,
+                contato: form.contato,
+                endereco: form.endereco,
+                numero,
+                complemento: complementoNumero,
+                bairro: form.bairro,
+                cidade: form.cidade,
+                estado: form.estado,
 
-    const link = response.data.link;
+                produtos: carrinho.map(item => ({
+                    id: item.id,
+                    nome: item.nome,
+                    quantidade: Number(item.quantidade) || 0,
 
-    if (link) {
-      Linking.openURL(link);
+                    precoVenda: Number(item.precoVenda) || 0,
+                    precoCompra: Number(item.precoCompra) || 0,
+
+                    totalVenda:
+                        (Number(item.precoVenda) || 0) *
+                        (Number(item.quantidade) || 0),
+
+                    totalCusto:
+                        (Number(item.precoCompra) || 0) *
+                        (Number(item.quantidade) || 0),
+
+                    lucro:
+                        ((Number(item.precoVenda) || 0) -
+                            (Number(item.precoCompra) || 0)) *
+                        (Number(item.quantidade) || 0)
+                })),
+                total: total,
+                formaPagamento: formaPagamento,
+                statusPagamento: status,
+                data: new Date()
+            });
+
+        } catch (error) {
+            console.log(error);
+        }
     }
 
-  } catch (error) {
-    console.log(error);
-  }
-}
+    async function confirmarPagamento() {
+        await salvarPedido("pago");
 
-async function gerarPixMP(total) {
-  try {
-    const response = await axios.post(
-      "https://award-unlawful-throwing.ngrok-free.dev",
-      { total }
-    );
+        mostrarToast("Pagamento aprovado ✅");
 
-    setQrPix(response.data.qr_base64);
+        limparCarrinho();
 
-  } catch (error) {
-    console.log(error);
-  }
-}
+        setTimeout(() => {
+            navigation.navigate("MainTabs", {
+                screen: "Home"
+            });
+        }, 1500);
+    }
+    //    async function finalizar() {
+    //   // 🔒 VALIDAÇÕES
+    //   if (!form.nome.trim()) {
+    //     mostrarToast("Digite seu nome", "erro");
+    //     return;
+    //   }
 
-//     async function finalizar() {
-        
+    //   if (!form.sobrenome.trim()) {
+    //     mostrarToast("Digite seu sobrenome", "erro");
+    //     return;
+    //   }
 
-//         if (!form.nome?.trim() || !form.endereco?.trim() || !form.contato?.trim()) {
-//             mostrarToast("Preencha os dados obrigatórios");
-//             return;
-//         }
+    //   if (!form.contato.trim()) {
+    //     mostrarToast("Digite seu contato", "erro");
+    //     return;
+    //   }
 
-//         if (!numero) {
-//             mostrarToast("Digite o número da residência ⚠️");
-//             return;
-//         }
+    //   if (!cep.trim()) {
+    //     mostrarToast("Digite o CEP", "erro");
+    //     return;
+    //   }
 
-//         if (carrinho.length === 0) {
-//             mostrarToast("Carrinho vazio 🛍️");
-//             return;
-//         }
-//         if (!formaPagamento) {
-//             mostrarToast("Selecione a forma de pagamento 💳");
-//             return;
-//         }
+    //   if (!form.endereco.trim()) {
+    //     mostrarToast("Endereço inválido", "erro");
+    //     return;
+    //   }
 
-        
-//         try {
-// console.log("BOTÃO CLICADO");
-//            await irParaPagamento(total);
+    //   if (!numero.trim()) {
+    //     mostrarToast("Digite o número", "erro");
+    //     return;
+    //   }
 
-//             await addDoc(collection(db, "pedidos"), {
+    //   if (!form.bairro.trim()) {
+    //     mostrarToast("Digite o bairro", "erro");
+    //     return;
+    //   }
 
-//                 nome: form.nome,
-//                 sobrenome: form.sobrenome,
-//                 contato: form.contato,
-//                 endereco: {
+    //   if (!form.cidade.trim()) {
+    //     mostrarToast("Digite a cidade", "erro");
+    //     return;
+    //   }
 
-//                       rua: form.endereco, 
-//                     numero: numero,
-//                     complementoNumero: complementoNumero, // 👈 NOVO
-//                     // complemento: complemento,
-//                     bairro: form.bairro,
-//                     cidade: form.cidade,
-//                     estado: form.estado,
-//                     cep: form.cep
-//                 },
-//                 produtos: carrinho,
-//                 total: total,
-//                 formaPagamento: formaPagamento,
-//                 statusPagamento: "pendente",
-//                 data: new Date()
-//             });
+    //   // 🔥 AGORA SIM libera pagamento
+    //   if (formaPagamento === "cartao") {
+    //     await irParaPagamento(total);
+    //     return;
+    //   }
 
-//             mostrarToast("Pedido enviado com sucesso 🧾");
+    //   if (formaPagamento === "pix") {
+    //     await gerarPixMP(total);
+    //     return;
+    //   }
 
-//             if (limparCarrinho) {
-//                 limparCarrinho();
-//             }// 🔥 importante
+    //   if (formaPagamento === "dinheiro") {
+    //     mostrarToast("Pedido enviado 💵");
+    //     return;
+    //   }
+    // }
+    async function finalizar() {
 
-//             navigation.goBack();
+        if (!form.nome) {
+            mostrarToast("Digite seu nome", "erro");
+            return;
+        }
 
-//         } catch (error) {
-//             console.error(error);
-//             mostrarToast("Erro ao finalizar pedido ❌");
-//         }
-//     }
+        if (formaPagamento === "pix") {
+            await gerarPixMP(total);
+            return;
+        }
 
-async function finalizar() {
+        if (formaPagamento === "cartao") {
+            mostrarToast("Processando cartão...");
 
-  if (formaPagamento === "cartao") {
-    await irParaPagamento(total);
-    return;
-  }
+            setTimeout(() => {
+                confirmarPagamento();
+            }, 3000);
 
-  if (formaPagamento === "pix") {
-    await gerarPixMP(total);
-    return;
-  }
+            return;
+        }
 
-  if (formaPagamento === "dinheiro") {
-    mostrarToast("Pedido enviado 💵");
-    return;
-  }
-}
+        if (formaPagamento === "dinheiro") {
+            await salvarPedido("aguardando");
+
+            mostrarToast("Pedido enviado 💵");
+
+            limparCarrinho();
+
+            setTimeout(() => {
+                navigation.navigate("MainTabs", {
+                    screen: "Home"
+                });
+            }, 1500);
+        }
+    }
 
     async function buscarCep(cep) {
         const cepLimpo = cep.replace(/\D/g, "");
@@ -239,53 +286,129 @@ async function finalizar() {
         }, 2000);
     }
 
-    async function irParaPagamento(total) {
-  try {
-    const response = await axios.post(
-      "https://award-unlawful-throwing.ngrok-free.dev",
-      { total }
-    );
 
-    const link = response.data.link;
 
-    if (link) {
-      Linking.openURL(link);
+    // async function irParaPagamento(total) {
+    //     try {
+    //         const response = await axios.post(
+    //             "https://award-unlawful-throwing.ngrok-free.dev/criar-cartao",
+    //             { total }
+    //         );
+    //         console.log("ROUTE PARAMS:", route.params);
+    //         const link = response.data.link;
+
+    //         if (link) {
+    //             Linking.openURL(link);
+    //         }
+
+    //     } catch (error) {
+    //         console.log(error);
+    //     }
+    // }
+
+    // 
+    async function copiarPix() {
+        await Clipboard.setStringAsync(codigoPix);
+        mostrarToast("PIX copiado com sucesso ✅");
     }
 
-  } catch (error) {
-    console.log(error);
-  }
-}
+    async function gerarPixMP(total) {
+        try {
+            const response = await axios.post(
+                "https://award-unlawful-throwing.ngrok-free.dev/criar-pix",
+                { total }
+            );
+            // 🚨 VALIDAÇÃO IMPORTANTE
+            if (!response.data.qr_base64) {
+                mostrarToast("Erro ao gerar PIX ❌", "erro");
+                return;
+            }
 
-async function gerarPixMP(total) {
-  try {
-    const response = await axios.post(
-      "https://award-unlawful-throwing.ngrok-free.dev",
-      { total }
-    );
+            setQrPix(response.data.qr_base64);
+            setCodigoPix(response.data.qr_code); // 👈 AQUI
 
-    setQrPix(response.data.qr_base64);
+            setMostrarPix(true);
 
-  } catch (error) {
-    console.log(error);
-  }
-}
+        } catch (error) {
+            console.log(error);
+        }
+    }
+
+    if (mostrarPix) {
+        return (
+            <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 20 }}>
+
+                {toast.visible && (
+                    <View style={[
+                        styles.toast,
+                        toast.tipo === "erro" && styles.toastErro
+                    ]}>
+                        <Text style={styles.toastText}>
+                            {toast.tipo === "erro" ? "⚠️ " : "✅ "}
+                            {toast.message}
+                        </Text>
+                    </View>
+                )}
 
 
-async function gerarPixMP(total) {
-  try {
-    const response = await axios.post(
-      "https://award-unlawful-throwing.ngrok-free.dev",
-      { total }
-    );
+                <Text style={{ fontSize: 20, fontWeight: "bold", marginBottom: 10 }}>
+                    Pagamento via PIX
+                </Text>
 
-    setQrPix(response.data.qr_base64);
+                <Text style={{ marginBottom: 20 }}>
+                    Total: R$ {total.toFixed(2)}
+                </Text>
 
-  } catch (error) {
-    console.log(error);
-  }
-}
-    <Text>Total: R$ {total.toFixed(2)}</Text>
+                {qrPix && (
+                    <Image
+                        source={{ uri: `data:image/png;base64,${qrPix}` }}
+                        style={{ width: 250, height: 250 }}
+                    />
+                )}
+                <TouchableOpacity
+                    onPress={copiarPix}
+                    style={{
+                        marginTop: 15,
+                        backgroundColor: "#c48b9f",
+                        padding: 12,
+                        borderRadius: 10
+                    }}
+                >
+                    <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                        Copiar código PIX
+                    </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    onPress={confirmarPagamento}
+                    style={{
+                        marginTop: 15,
+                        backgroundColor: "green",
+                        padding: 12,
+                        borderRadius: 10
+                    }}
+                >
+                    <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                        ✅ Já paguei
+                    </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    onPress={() => setMostrarPix(false)}
+                    style={{
+                        marginTop: 20,
+                        backgroundColor: "#c48b9f",
+                        padding: 10,
+                        borderRadius: 10
+                    }}
+                >
+                    <Text style={{ color: "#fff" }}>Voltar</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
+
     return (
 
 
@@ -399,7 +522,7 @@ async function gerarPixMP(total) {
                             placeholder="Estado"
                             value={form.estado}
                         />
-                        
+
 
                         <TouchableOpacity style={styles.botao} onPress={finalizar}>
 
@@ -407,12 +530,12 @@ async function gerarPixMP(total) {
 
                         </TouchableOpacity>
 
-                        {qrPix && (
-  <Image
-    source={{ uri: `data:image/png;base64,${qrPix}` }}
-    style={{ width: 200, height: 200, alignSelf: "center", marginTop: 20 }}
-  />
-)}
+                        {/* {qrPix && (
+                            <Image
+                                source={{ uri: `data:image/png;base64,${qrPix}` }}
+                                style={{ width: 200, height: 200, alignSelf: "center", marginTop: 20 }}
+                            />
+                        )} */}
 
 
                     </View>
@@ -462,7 +585,7 @@ const styles = StyleSheet.create({
     },
     toast: {
         position: "absolute",
-        top: 60,
+        top: 100,
         left: 20,
         right: 20,
         backgroundColor: "#c48b9f",

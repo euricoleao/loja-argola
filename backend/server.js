@@ -1,86 +1,134 @@
 import cors from "cors";
 import express from "express";
-import { MercadoPagoConfig, Preference } from "mercadopago";
 import fetch from "node-fetch";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 🔑 SEU TOKEN AQUI
-const client = new MercadoPagoConfig({
-  accessToken: "APP_USR-6657644783641857-042410-7b745d4e17c598f0d81c8e7d4eaff76a-3357830212"
-});
+const ASAAS_TOKEN = "$aact_hmlg_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjAwZTliYmM2LWY1NGYtNGFkYi1hODI5LWUyMjhiNjQ1MDRiYTo6JGFhY2hfMmE3ZDRjYTMtNzJkYS00MWYxLTg0MWEtMjE5NDk2ZGU5NDc0";
 
-
-// 💳 PAGAMENTO CARTÃO (link)
-app.post("/criar-pagamento", async (req, res) => {
-  try {
-    const { total } = req.body;
-
-    const preference = new Preference(client);
-
-    const response = await preference.create({
-      body: {
-        items: [
-          {
-            title: "Pedido Loja",
-            quantity: 1,
-            unit_price: Number(total)
-          }
-        ]
-      }
-    });
-
-    res.json({
-      link: response.init_point
-    });
-
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ erro: "Erro pagamento" });
-  }
-});
-
-
-// 📲 PIX
+// 🔥 CRIAR PIX
 app.post("/criar-pix", async (req, res) => {
   try {
     const { total } = req.body;
 
-    const response = await fetch("https://api.mercadopago.com/v1/payments", {
+    console.log("TOTAL:", total);
+
+    // 1️⃣ criar cliente
+    const clienteRes = await fetch("https://sandbox.asaas.com/api/v3/customers", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer SEU_ACCESS_TOKEN_AQUI`
+        "access_token": ASAAS_TOKEN
       },
       body: JSON.stringify({
-        transaction_amount: Number(total),
-        description: "Pedido Loja",
-        payment_method_id: "pix",
-        payer: {
-          email: "teste@test.com"
+        name: "Cliente Teste",
+        email: "cliente@gmail.com",
+        cpfCnpj: "12345678909" // 👈 CPF válido fake (pode usar esse)
+      })
+    });
+
+    const cliente = await clienteRes.json();
+    console.log("CLIENTE:", cliente);
+
+    // 2️⃣ criar pagamento
+    const pagamentoRes = await fetch("https://sandbox.asaas.com/api/v3/payments", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "access_token": ASAAS_TOKEN
+      },
+     body: JSON.stringify({
+  customer: cliente.id,
+  billingType: "PIX",
+  value: Number(total),
+  description: "Pedido Loja",
+  dueDate: new Date().toISOString().split("T")[0], // 👈 HOJE
+    pixAddressKey: "email@teste.com"
+})
+    });
+
+    const pagamento = await pagamentoRes.json();
+    console.log("PAGAMENTO:", pagamento);
+
+    // ⚠️ SE DER ERRO AQUI, PARA TUDO
+    if (!pagamento.id) {
+      return res.status(400).json({
+        erro: "Erro ao criar pagamento",
+        detalhe: pagamento
+      });
+    }
+
+    // 3️⃣ pegar QR
+    const qrRes = await fetch(
+      `https://sandbox.asaas.com/api/v3/payments/${pagamento.id}/pixQrCode`,
+      {
+        headers: {
+          "access_token": ASAAS_TOKEN
         }
+      }
+    );
+
+    const qr = await qrRes.json();
+    console.log("QR:", qr);
+
+    if (!qr.encodedImage) {
+      return res.status(400).json({
+        erro: "QR não gerado",
+        detalhe: qr
+      });
+    }
+
+    res.json({
+      qr_code: qr.payload,
+      qr_base64: qr.encodedImage
+    });
+
+  } catch (error) {
+    console.log("ERRO GERAL:", error); console.log("❌ ERRO COMPLETO:", error.response?.data || error);
+    res.status(500).json({ erro: "Erro PIX Asaas" });
+  }
+});
+
+
+app.post("/criar-cartao", async (req, res) => {
+  try {
+    const { total } = req.body;
+
+    const response = await fetch("https://sandbox.asaas.com/api/v3/paymentLinks", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "access_token": ASAAS_TOKEN
+      },
+      body: JSON.stringify({
+        name: "Pedido Loja",
+        description: "Compra no app",
+        value: Number(total),
+        billingType: "CREDIT_CARD", // 👈 AQUI SIM
+        chargeType: "DETACHED"
       })
     });
 
     const data = await response.json();
+    console.log("LINK CARTAO:", data);
+
+    if (!data.url) {
+      return res.status(400).json({
+        erro: "Erro ao gerar link",
+        detalhe: data
+      });
+    }
 
     res.json({
-      qr_code: data.point_of_interaction.transaction_data.qr_code,
-      qr_base64: data.point_of_interaction.transaction_data.qr_code_base64
+      link: data.url
     });
 
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ erro: "Erro PIX" });
+    console.log("ERRO CARTAO:", error);
+    res.status(500).json({ erro: "Erro cartão" });
   }
 });
 
 app.listen(3000, () => console.log("Servidor rodando 🚀"));
-
-
-
-
-
-// APP_USR-6657644783641857-042410-7b745d4e17c598f0d81c8e7d4eaff76a-3357830212

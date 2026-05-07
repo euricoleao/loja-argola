@@ -16,11 +16,11 @@ import DashboardScreen from "../screens/DashboardScreen";
 import EditarProdutoScreen from "../screens/EditarProdutoScreen";
 import EstoqueScreen from "../screens/EstoqueScreen";
 import FavoritosScreen from "../screens/FavoritosScreen";
+import FinanceiroScreen from "../screens/FinanceiroScreen";
 import ListaProdutosScreen from "../screens/ListaProdutosScreen";
 import Login from "../screens/LoginScreen";
 import PedidoDetalheScreen from "../screens/PedidoDetalheScreen";
 import PedidosScreen from "../screens/PedidosScreen";
-
 
 
 
@@ -187,6 +187,11 @@ function AdminStack() {
                 component={ListaProdutosScreen}
                 options={{ title: "Produtos 📦" }}
             />
+         <Stack.Screen
+   name="Financeiro"
+   component={FinanceiroScreen}
+   options={{ title: "Financeiro 💰" }}
+/>
 
         </Stack.Navigator>
     );

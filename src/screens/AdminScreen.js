@@ -35,6 +35,14 @@ export default function AdminScreen({ navigation }) {
       >
       <Text style={styles.buttonText}>📦 Ver Produtos</Text>
      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => navigation.navigate("Financeiro")}
+      >
+        <Text style={styles.buttonText}>💰 Financeiro</Text>
+      </TouchableOpacity>
+
     </View>
   );
 }

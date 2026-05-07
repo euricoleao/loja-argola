@@ -6,6 +6,10 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Text, View } from "react-native";
 import { CartProvider } from "./src/context/CartContext";
 
+import { navigationRef } from '../loja-joias/src/Routes/navigationService';
+
+
+
 import Routes from "./src/Routes";
 
 
@@ -34,10 +38,10 @@ const [fontsLoaded] = useFonts({
       <LinearGradient colors={["#f8e1e7", "#f1c6d4", "#dba0b4"]}
   style={{ flex: 1 }}
 >
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef}>
 
       <Routes  />
-      </NavigationContainer>
+      </NavigationContainer >
       </LinearGradient>
     </CartProvider>
     </AuthProvider>
