@@ -1,13 +1,15 @@
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { NavigationContainer } from "@react-navigation/native";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-import CartScreen from "../screens/CartScreen";
-import HomeScreen from "../screens/HomeScreen";
-import LoginScreen from "../screens/LoginScreen";
-import ProductDetailScreen from "../screens/ProductDetailScreen";
-import ProductsScreen from "../screens/ProductsScreen";
-
+import { useContext } from 'react';
+import { AuthContext } from '../context/AuthContext';
+import CartScreen from '../screens/CartScreen';
+import HomeScreen from '../screens/HomeScreen';
+import LoginScreen from '../screens/LoginScreen';
+import PerfilScreen from '../screens/PerfilScreen';
+import ProductDetailScreen from '../screens/ProductDetailScreen';
+import ProductsScreen from '../screens/ProductsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -23,12 +25,23 @@ function HomeStack() {
 }
 
 export default function AppNavigator() {
+  const { usuario, loading } = useContext(AuthContext);
+
+  if (loading) {
+    return null; // depois podemos colocar uma tela de carregamento
+  }
+
   return (
     <NavigationContainer>
       <Tab.Navigator screenOptions={{ headerShown: false }}>
         <Tab.Screen name="Home" component={HomeStack} />
         <Tab.Screen name="Carrinho" component={CartScreen} />
-        <Tab.Screen name="Login" component={LoginScreen} />
+
+        {usuario ? (
+          <Tab.Screen name="Perfil" component={PerfilScreen} />
+        ) : (
+          <Tab.Screen name="Login" component={LoginScreen} />
+        )}
       </Tab.Navigator>
     </NavigationContainer>
   );
