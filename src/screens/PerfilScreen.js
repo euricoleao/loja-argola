@@ -71,8 +71,7 @@ export default function PerfilScreen({ navigation }) {
     try {
       const q = query(
         collection(db, 'pedidos'),
-        // where('cliente.nome', '==', usuario.nome),
-        where('cliente.email', '==', usuario.email),
+        where('uid', '==', usuario.uid),
       );
 
       const snapshot = await getDocs(q);
@@ -86,6 +85,15 @@ export default function PerfilScreen({ navigation }) {
       });
 
       setTotalCompras(total);
+
+      const favoritosQuery = query(
+        collection(db, 'favorites'),
+        where('uid', '==', usuario.uid),
+      );
+
+      const favoritosSnapshot = await getDocs(favoritosQuery);
+
+      setTotalFavoritos(favoritosSnapshot.size);
     } catch (e) {
       console.log(e);
     }
@@ -186,7 +194,12 @@ export default function PerfilScreen({ navigation }) {
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.botaoEditar} onPress={escolherFoto}>
-            <MaterialIcons name="edit" size={12} color="#fff" />
+            <MaterialIcons
+              name="edit"
+              size={12}
+              color="#fff"
+              activeOpacity={0.7}
+            />
           </TouchableOpacity>
         </View>
 
@@ -211,7 +224,7 @@ export default function PerfilScreen({ navigation }) {
           </View>
 
           <View style={styles.cardInfo}>
-            <Text style={styles.numero}>R$ {totalCompras.toFixed(2)}</Text>
+            <Text style={styles.numerob}>R$ {totalCompras.toFixed(2)}</Text>
             <Text style={styles.label}>💰 Compras</Text>
           </View>
         </View>
@@ -328,7 +341,7 @@ const styles = StyleSheet.create({
 
   sair: {
     margin: 20,
-    backgroundColor: '#d32f2f',
+    backgroundColor: '#C48B9F',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -362,6 +375,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#D4AF37',
   },
+  numerob: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#D4AF37',
+  },
 
   label: {
     marginTop: 6,
@@ -376,6 +394,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 6,
+    borderWidth: 3,
+    borderColor: '#D4AF37',
   },
 
   avatarTexto: {

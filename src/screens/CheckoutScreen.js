@@ -1,7 +1,15 @@
 import axios from 'axios';
 import * as Clipboard from 'expo-clipboard';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { useContext, useState } from 'react';
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  onSnapshot,
+  updateDoc,
+} from 'firebase/firestore';
+import { useContext, useEffect, useState } from 'react';
+
 import {
   Image,
   Keyboard,
@@ -21,20 +29,20 @@ import { db } from '../firebase/config';
 
 export default function CheckoutScreen({ navigation, route }) {
   const { usuario } = useContext(AuthContext);
-  console.log('ROUTE PARAMS:', route.params);
+  // console.log('ROUTE PARAMS:', route.params);
   const [cep, setCep] = useState('');
   const [loadingCep, setLoadingCep] = useState(false);
-  const [numero, setNumero] = useState('');
+  // const [numero, setNumero] = useState('');
   const [mostrarPix, setMostrarPix] = useState(false);
-  const [complementoNumero, setComplementoNumero] = useState('');
+  // const [complementoNumero, setComplementoNumero] = useState('');
   const { carrinho, limparCarrinho } = useContext(CartContext);
-
+  const [pedidoAtual, setPedidoAtual] = useState(null);
   const [codigoPix, setCodigoPix] = useState('');
 
   const formaInicial = route.params?.formaPagamento || 'pix';
 
   const [formaPagamento, setFormaPagamento] = useState(formaInicial);
-  console.log('FORMA NO CHECKOUT:', formaPagamento);
+  // console.log('FORMA NO CHECKOUT:', formaPagamento);
   const total = carrinho.reduce((soma, item) => {
     return soma + (item.precoVenda || 0) * (item.quantidade || 0);
   }, 0);
@@ -49,6 +57,7 @@ export default function CheckoutScreen({ navigation, route }) {
     endereco: '',
     rua: '',
     numero: '',
+    complemento: '',
     bairro: '',
     cidade: '',
     estado: 'Bahia',
@@ -60,31 +69,83 @@ export default function CheckoutScreen({ navigation, route }) {
     tipo: 'sucesso', // 👈 ADICIONE ISSO
   });
 
+  useEffect(() => {
+    if (!pedidoAtual) return;
+
+    const pedidoRef = doc(db, 'pedidos', pedidoAtual);
+
+    const unsubscribe = onSnapshot(pedidoRef, (snapshot) => {
+      if (!snapshot.exists()) return;
+
+      const pedido = snapshot.data();
+
+      console.log('STATUS FIRESTORE:', pedido.statusPagamento);
+
+      if (pedido.statusPagamento === 'pago') {
+        mostrarToast('Pagamento aprovado ✅');
+
+        limparCarrinho();
+
+        setTimeout(() => {
+          navigation.navigate('MainTabs', {
+            screen: 'Home',
+          });
+        }, 1500);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [pedidoAtual]);
   function atualizar(campo, valor) {
     setForm({ ...form, [campo]: valor });
   }
 
-  async function salvarPedido(status = 'pago') {
+  useEffect(() => {
+    if (usuario?.uid) {
+      carregarCliente();
+    }
+  }, [usuario]);
+
+  async function salvarPedido(status = 'aguardando') {
     try {
-      await addDoc(collection(db, 'pedidos'), {
+      // Atualiza dados do cliente
+      if (usuario?.uid) {
+        await updateDoc(doc(db, 'usuarios', usuario.uid), {
+          cep: form.cep,
+          numero: form.numero,
+          complemento: form.complemento,
+          endereco: form.endereco,
+          bairro: form.bairro,
+          cidade: form.cidade,
+          estado: form.estado,
+        });
+      }
+      // Cria pedido e pega o ID
+      const pedidoRef = await addDoc(collection(db, 'pedidos'), {
         cliente: form.nome + ' ' + form.sobrenome,
+
         uid: usuario?.uid || '',
+
         email: usuario?.email || '',
+
         contato: form.contato,
 
         endereco: form.endereco,
-        numero,
-        complemento: complementoNumero,
+        numero: form.numero,
+        complemento: form.complemento,
         bairro: form.bairro,
         cidade: form.cidade,
         estado: form.estado,
 
         produtos: carrinho.map((item) => ({
           id: item.id,
+
           nome: item.nome,
+
           quantidade: Number(item.quantidade) || 0,
 
           precoVenda: Number(item.precoVenda) || 0,
+
           precoCompra: Number(item.precoCompra) || 0,
 
           totalVenda:
@@ -97,95 +158,66 @@ export default function CheckoutScreen({ navigation, route }) {
             ((Number(item.precoVenda) || 0) - (Number(item.precoCompra) || 0)) *
             (Number(item.quantidade) || 0),
         })),
+
         total: total,
+
         formaPagamento: formaPagamento,
+
+        // aguardando ou pago
         statusPagamento: status,
+
         data: new Date(),
       });
 
-      for (const item of carrinho) {
-        await addDoc(collection(db, 'vendas'), {
-          nome: item.nome,
-          codigo: item.codigo || '',
+      console.log('Pedido criado:', pedidoRef.id);
 
-          precoVenda: Number(item.precoVenda) || 0,
-
-          precoCompra: Number(item.precoCompra) || 0,
-
-          quantidade: Number(item.quantidade) || 1,
-
-          lucro:
-            ((Number(item.precoVenda) || 0) - (Number(item.precoCompra) || 0)) *
-            (Number(item.quantidade) || 1),
-
-          cliente: form.nome + ' ' + form.sobrenome,
-
-          formaPagamento,
-
-          criadoEm: serverTimestamp(),
-        });
-      }
+      return pedidoRef.id;
     } catch (error) {
-      console.log(error);
+      console.log('Erro salvar pedido:', error);
+
+      return null;
     }
   }
 
-  // await addDoc(collection(db, 'pedidos'), {
-  //   cliente: {
-  //     uid: usuario.uid,
-  //     nome: usuario.nome,
-  //     email: usuario.email,
-  //   },
+  async function carregarCliente() {
+    try {
+      const userRef = doc(db, 'usuarios', usuario.uid);
 
-  //   contato: form.contato,
+      const snap = await getDoc(userRef);
 
-  //   endereco: form.endereco,
-  //   numero,
-  //   complemento: complementoNumero,
-  //   bairro: form.bairro,
-  //   cidade: form.cidade,
-  //   estado: form.estado,
+      if (snap.exists()) {
+        const dados = snap.data();
 
-  //   produtos: carrinho.map((item) => ({
-  //     id: item.id,
-  //     nome: item.nome,
-  //     quantidade: Number(item.quantidade) || 0,
+        setForm((prev) => ({
+          ...prev,
+          nome: dados.nome || '',
+          sobrenome: dados.sobrenome || '',
+          email: dados.email || '',
+          contato: dados.telefone || '',
 
-  //     precoVenda: Number(item.precoVenda) || 0,
-  //     precoCompra: Number(item.precoCompra) || 0,
-
-  //     totalVenda:
-  //       (Number(item.precoVenda) || 0) *
-  //       (Number(item.quantidade) || 0),
-
-  //     totalCusto:
-  //       (Number(item.precoCompra) || 0) *
-  //       (Number(item.quantidade) || 0),
-
-  //     lucro:
-  //       ((Number(item.precoVenda) || 0) -
-  //         (Number(item.precoCompra) || 0)) *
-  //       (Number(item.quantidade) || 0),
-  //   })),
-
-  //   total,
-  //   formaPagamento,
-  //   statusPagamento: status,
-  //   data: new Date(),
-  // });
-
-  async function confirmarPagamento() {
-    await salvarPedido('pago');
+          cep: dados.cep || '',
+          endereco: dados.endereco || '',
+          bairro: dados.bairro || '',
+          cidade: dados.cidade || '',
+          estado: dados.estado || 'Bahia',
+        }));
+      }
+    } catch (e) {
+      console.log(e);
+    }
+  }
+  async function confirmarPagamento(pedidoId) {
+    await updateDoc(doc(db, 'pedidos', pedidoId), {
+      statusPagamento: 'pago',
+    });
 
     mostrarToast('Pagamento aprovado ✅');
 
     limparCarrinho();
 
-    setTimeout(() => {
-      navigation.navigate('MainTabs', {
-        screen: 'Home',
-      });
-    }, 1500);
+    navigation.navigate('MainTabs', {
+      screen: 'Home',
+    });
   }
 
   async function finalizar() {
@@ -194,16 +226,34 @@ export default function CheckoutScreen({ navigation, route }) {
       return;
     }
 
+    // PIX
     if (formaPagamento === 'pix') {
-      await gerarPixMP(total);
+      const pedidoId = await salvarPedido('aguardando');
+
+      if (!pedidoId) {
+        mostrarToast('Erro ao criar pedido', 'erro');
+
+        return;
+      }
+      setPedidoAtual(pedidoId);
+
+      await gerarPixMP(total, pedidoId);
+
       return;
     }
 
     if (formaPagamento === 'cartao') {
+      const pedidoId = await salvarPedido('pago');
+
+      if (!pedidoId) {
+        mostrarToast('Erro ao criar pedido', 'erro');
+        return;
+      }
+
       mostrarToast('Processando cartão...');
 
       setTimeout(() => {
-        confirmarPagamento();
+        confirmarPagamento(pedidoId);
       }, 3000);
 
       return;
@@ -293,20 +343,23 @@ export default function CheckoutScreen({ navigation, route }) {
     mostrarToast('PIX copiado com sucesso ✅');
   }
 
-  async function gerarPixMP(total) {
+  async function gerarPixMP(total, pedidoId) {
     try {
       const response = await axios.post(
-        'https://award-unlawful-throwing.ngrok-free.dev/criar-pix',
-        { total },
+        'https://skimming-captive-embezzle.ngrok-free.dev/criar-pix',
+        {
+          total,
+          pedidoId,
+        },
       );
-      // 🚨 VALIDAÇÃO IMPORTANTE
+
       if (!response.data.qr_base64) {
         mostrarToast('Erro ao gerar PIX ❌', 'erro');
         return;
       }
 
       setQrPix(response.data.qr_base64);
-      setCodigoPix(response.data.qr_code); // 👈 AQUI
+      setCodigoPix(response.data.qr_code);
 
       setMostrarPix(true);
     } catch (error) {
@@ -361,20 +414,15 @@ export default function CheckoutScreen({ navigation, route }) {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={confirmarPagamento}
+        <Text
           style={{
-            marginTop: 15,
-            backgroundColor: 'green',
-            padding: 12,
-            borderRadius: 10,
+            marginTop: 20,
+            color: '#666',
+            textAlign: 'center',
           }}
         >
-          <Text style={{ color: '#fff', fontWeight: 'bold' }}>
-            ✅ Já paguei
-          </Text>
-        </TouchableOpacity>
-
+          Aguardando confirmação automática do pagamento...
+        </Text>
         <TouchableOpacity
           onPress={() => setMostrarPix(false)}
           style={{
@@ -419,7 +467,7 @@ export default function CheckoutScreen({ navigation, route }) {
           {/* FORMULÁRIO */}
           <View style={[styles.container, { padding: 20 }]}>
             <TextInput
-              placeholder="Nome"
+              placeholder="Nome "
               style={styles.input}
               value={form.nome}
               onChangeText={(v) => atualizar('nome', v)}
@@ -428,6 +476,7 @@ export default function CheckoutScreen({ navigation, route }) {
             <TextInput
               placeholder="Sobrenome"
               style={styles.input}
+              value={form.sobrenome}
               onChangeText={(v) => atualizar('sobrenome', v)}
             />
 
@@ -462,14 +511,14 @@ export default function CheckoutScreen({ navigation, route }) {
               style={styles.input}
               placeholder="Número"
               keyboardType="numeric"
-              value={numero}
-              onChangeText={setNumero}
+              value={form.numero}
+              onChangeText={(v) => atualizar('numero', v)}
             />
 
             <TextInput
               placeholder="Complemento (ex: A, Fundos, Casa 2)"
-              value={complementoNumero}
-              onChangeText={setComplementoNumero}
+              value={form.complemento}
+              onChangeText={(v) => atualizar('complemento', v)}
               style={styles.input}
             />
 

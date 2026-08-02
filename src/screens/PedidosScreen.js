@@ -43,22 +43,6 @@ export default function PedidosScreen({ navigation }) {
     });
   }
 
-  //   function renderStatus(status) {
-  //   if (status === "pendente") {
-  //     return "🟡 Pendente";
-  //   }
-
-  //   if (status === "saiu_entrega") {
-  //     return "🚚 Saiu para entrega";
-  //   }
-
-  //   if (status === "entregue") {
-  //     return "🟢 Entregue";
-  //   }
-
-  //   return status;
-  // }
-
   return (
     <View style={styles.container}>
       <FlatList
