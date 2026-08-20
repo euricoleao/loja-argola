@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
 
   card: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#664a4a',
     margin: 5,
     borderRadius: 10,
     padding: 10,
@@ -183,6 +183,6 @@ const styles = StyleSheet.create({
   preco: {
     marginTop: 5,
     fontSize: 15,
-    color: 'green',
+    color: 'red',
   },
 });

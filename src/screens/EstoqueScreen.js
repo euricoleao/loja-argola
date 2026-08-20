@@ -1,228 +1,389 @@
-import { addDoc, collection, deleteDoc, doc, getDocs, onSnapshot, query, updateDoc, where } from "firebase/firestore";
-import { useEffect, useState } from "react";
-import { Alert, Button, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { db } from "../firebase/config";
-import { formatarPreco } from "../utils/formatarPreco";
+import { collection, doc, onSnapshot, updateDoc } from 'firebase/firestore';
 
+import { useEffect, useState } from 'react';
 
+import {
+  Alert,
+  FlatList,
+  Modal,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
+import { db } from '../firebase/config';
+import { formatarPreco } from '../utils/formatarPreco';
 
-export default function EstoqueScreen({ navigation }) {
+export default function EstoqueScreen() {
+  const [produtos, setProdutos] = useState([]);
+  const [modalVisivel, setModalVisivel] = useState(false);
+  const [produtoSelecionado, setProdutoSelecionado] = useState(null);
+  const [quantidadeEntrada, setQuantidadeEntrada] = useState('');
 
-    const [nome, setNome] = useState("");
-    const [precoCompra, setPrecoCompra] = useState("");
-    const [precoVenda, setPrecoVenda] = useState("");
-    const [produtos, setProdutos] = useState([]);
-    const [quantidade, setQuantidade] = useState("");
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      collection(db, 'products'),
+      (snapshot) => {
+        const lista = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
 
- 
-
-async function adicionarProduto() {
-  try {
-    const compra = Number(precoCompra) || 0;
-    const venda = Number(precoVenda) || 0;
-    const qtd = Number(quantidade) || 0;
-
-    const lucro = venda - compra;
-
-    const nomeFormatado = nome.toLowerCase();
-
-    // 🔎 verifica se já existe
-    const q = query(
-      collection(db, "products"),
-      where("nome", "==", nomeFormatado)
+        setProdutos(lista);
+      },
+      (error) => {
+        console.error('❌ Erro ao carregar estoque:', error);
+      },
     );
 
-    const snapshot = await getDocs(q);
+    return () => unsubscribe();
+  }, []);
 
-    if (!snapshot.empty) {
-      // 👉 SOMAR quantidade
-      const docRef = snapshot.docs[0];
-      const dados = docRef.data();
-
-      const novaQtd = (dados.quantidade || 0) + qtd;
-
-      await updateDoc(doc(db, "products", docRef.id), {
-        quantidade: novaQtd
-      });
-
-      alert("Estoque atualizado 📦");
-
-    } else {
-      // 👉 NOVO PRODUTO
-      await addDoc(collection(db, "products"), {
-        nome: nomeFormatado,
-        precoCompra: compra,
-        precoVenda: venda,
-        lucro,
-        quantidade: qtd,
-        criadoEm: new Date()
-      });
-
-      alert("Produto criado 💎");
-    }
-
-    // limpar campos
-    setNome("");
-    setPrecoCompra("");
-    setPrecoVenda("");
-    setQuantidade("");
-
-  } catch (error) {
-    console.error(error);
-    alert("Erro ao salvar");
+  function abrirEntrada(item) {
+    setProdutoSelecionado(item);
+    setQuantidadeEntrada('');
+    setModalVisivel(true);
   }
-}
 
-    async function excluirProduto(id) {
-        try {
-            await deleteDoc(doc(db, "estoque", id));
-            alert("Produto excluído! 🗑️");
-        } catch (error) {
-            console.error(error);
-            alert("Erro ao excluir");
-        }
+  async function confirmarEntrada() {
+    try {
+      const entrada = Number(quantidadeEntrada) || 0;
+
+      if (entrada <= 0) {
+        Alert.alert('Atenção', 'Digite uma quantidade válida.');
+        return;
+      }
+
+      if (!produtoSelecionado) {
+        return;
+      }
+
+      const quantidadeAtual = Number(produtoSelecionado.quantidade) || 0;
+
+      const novaQuantidade = quantidadeAtual + entrada;
+
+      const precoCompra = Number(produtoSelecionado.precoCompra) || 0;
+
+      const precoVenda = Number(produtoSelecionado.precoVenda) || 0;
+
+      const lucro = precoVenda - precoCompra;
+
+      const custoTotal = novaQuantidade * precoCompra;
+
+      const lucroTotal = novaQuantidade * lucro;
+
+      await updateDoc(doc(db, 'products', produtoSelecionado.id), {
+        quantidade: novaQuantidade,
+        lucro,
+        custoTotal,
+        lucroTotal,
+      });
+
+      setModalVisivel(false);
+      setProdutoSelecionado(null);
+      setQuantidadeEntrada('');
+
+      Alert.alert(
+        'Estoque atualizado 📦',
+        `Novo estoque: ${novaQuantidade} peças`,
+      );
+    } catch (error) {
+      console.error('❌ Erro ao adicionar estoque:', error);
+
+      Alert.alert('Erro', 'Não foi possível atualizar o estoque.');
     }
+  }
 
-    function confirmarExclusao(id) {
-        Alert.alert(
-            "Excluir produto",
-            "Tem certeza que deseja excluir?",
-            [
-                { text: "Cancelar", style: "cancel" },
-                {
-                    text: "Excluir",
-                    style: "destructive",
-                    onPress: () => excluirProduto(id)
-                }
-            ]
-        );
-    }
+  return (
+    <View style={styles.container}>
+      <Text style={styles.titulo}>Controle de Estoque</Text>
 
-    useEffect(() => {
-        const unsubscribe = onSnapshot(
-            collection(db, "estoque"),
-            (snapshot) => {
-                const lista = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
+      <FlatList
+        data={produtos}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => {
+          const quantidade = Number(item.quantidade) || 0;
 
-                setProdutos(lista);
-            }
-        );
+          return (
+            <View style={styles.linha}>
+              <Text style={styles.nome}>{item.nome}</Text>
 
-        return () => unsubscribe();
-    }, []);
+              {item.codigo && (
+                <Text style={styles.codigo}>Código: {item.codigo}</Text>
+              )}
 
+              {/* ESTOQUE */}
 
+              <View
+                style={[
+                  styles.estoqueBox,
 
-    return (
-        <View style={styles.container}>
+                  quantidade === 0
+                    ? styles.estoqueZero
+                    : quantidade < 10
+                      ? styles.estoqueBaixo
+                      : styles.estoqueNormal,
+                ]}
+              >
+                <Text style={styles.estoqueIcone}>📦</Text>
 
-            <Text style={styles.titulo}>Controle de Estoque</Text>
+                <View>
+                  <Text style={styles.estoqueLabel}>ESTOQUE</Text>
+
+                  <Text
+                    style={[
+                      styles.estoqueQuantidade,
+
+                      quantidade === 0
+                        ? styles.estoqueQuantidadeZero
+                        : quantidade < 10
+                          ? styles.estoqueQuantidadeBaixo
+                          : styles.estoqueQuantidadeNormal,
+                    ]}
+                  >
+                    {quantidade === 0 ? 'SEM ESTOQUE' : `${quantidade} peças`}
+                  </Text>
+                </View>
+              </View>
+
+              {/* VALORES */}
+
+              <Text>Compra: {formatarPreco(item.precoCompra)}</Text>
+
+              <Text>Venda: {formatarPreco(item.precoVenda)}</Text>
+
+              <Text>Lucro por peça: {formatarPreco(item.lucro)}</Text>
+
+              <Text>Custo Total: {formatarPreco(item.custoTotal)}</Text>
+
+              <Text>Lucro Total: {formatarPreco(item.lucroTotal)}</Text>
+
+              {/* ENTRADA */}
+
+              <TouchableOpacity
+                style={styles.botaoEntrada}
+                onPress={() => abrirEntrada(item)}
+              >
+                <Text style={styles.textoBotao}>+ Entrada de estoque</Text>
+              </TouchableOpacity>
+            </View>
+          );
+        }}
+      />
+
+      <Modal
+        visible={modalVisivel}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalVisivel(false)}
+      >
+        <View style={styles.modalFundo}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitulo}>Adicionar estoque</Text>
+
+            {produtoSelecionado && (
+              <>
+                <Text style={styles.modalProduto}>
+                  {produtoSelecionado.nome}
+                </Text>
+
+                <Text style={styles.modalEstoqueAtual}>
+                  Estoque atual: {Number(produtoSelecionado.quantidade) || 0}{' '}
+                  peças
+                </Text>
+              </>
+            )}
 
             <TextInput
-                placeholder="Nome do produto"
-                value={nome}
-                onChangeText={setNome}
-                style={styles.input}
+              style={styles.modalInput}
+              placeholder="Quantidade recebida"
+              value={quantidadeEntrada}
+              onChangeText={setQuantidadeEntrada}
+              keyboardType="numeric"
+              autoFocus
             />
 
-            <TextInput
-                placeholder="Preço de compra"
-                value={precoCompra}
-                onChangeText={setPrecoCompra}
-                keyboardType="numeric"
-                style={styles.input}
-            />
+            <TouchableOpacity
+              style={styles.modalBotaoConfirmar}
+              onPress={confirmarEntrada}
+            >
+              <Text style={styles.modalTextoBotao}>Confirmar entrada</Text>
+            </TouchableOpacity>
 
-            <TextInput
-                placeholder="Preço de venda"
-                value={precoVenda}
-                onChangeText={setPrecoVenda}
-                keyboardType="numeric"
-                style={styles.input}
-            />
-            <TextInput
-                placeholder="Quantidade"
-                value={quantidade}
-                onChangeText={setQuantidade}
-                keyboardType="numeric"
-                style={styles.input}
-            />
-
-            <Button title="Adicionar" onPress={adicionarProduto} />
-
-            <FlatList
-                data={produtos}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                    <View style={styles.linha}>
-                        <Text style={{ fontWeight: "bold" }}>{item.nome}</Text>
-                        <Text>Qtd: {item.quantidade}</Text>
-                        <Text>Compra: {formatarPreco(item.precoCompra)}</Text>
-                        <Text>Venda Parcial: {formatarPreco(item.precoVenda)}</Text>
-                        <Text>Lucro Parcial: {formatarPreco(item.lucro)}</Text>
-                        <Text>Custo Total: {formatarPreco(item.custoTotal)}</Text>
-                        <Text>Lucro Total: {formatarPreco(item.lucroTotal)}</Text>
-
-                        <TouchableOpacity
-                            style={styles.botaoEditar}
-                            onPress={() => navigation.navigate("EditarProduto", { produto: item })}
-                        >
-                            <Text style={{ color: "#fff" }}>✏️ Editar</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={styles.botaoExcluir}
-                            onPress={() => confirmarExclusao(item.id)}
-                        >
-                            <Text style={{ color: "#fff" }}>🗑️ Excluir</Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
-            />
-
+            <TouchableOpacity
+              style={styles.modalBotaoCancelar}
+              onPress={() => {
+                setModalVisivel(false);
+                setProdutoSelecionado(null);
+                setQuantidadeEntrada('');
+              }}
+            >
+              <Text style={styles.modalTextoCancelar}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-    );
+      </Modal>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        padding: 15
-    },
-    titulo: {
-        fontSize: 18,
-        fontWeight: "bold",
-        marginBottom: 10
-    },
-    input: {
-        backgroundColor: "#fff",
-        padding: 10,
-        marginBottom: 10,
-        borderRadius: 8
-    },
-    linha: {
-        backgroundColor: "#fff",
-        padding: 10,
-        marginTop: 5,
-        borderRadius: 10
-    },
-    botaoEditar: {
-        marginTop: 5,
-        backgroundColor: "#c48b9f",
-        padding: 8,
-        borderRadius: 8,
-        alignItems: "center"
-    },
-    botaoExcluir: {
-  marginTop: 5,
-  backgroundColor: "#e60023",
-  padding: 8,
-  borderRadius: 8,
-  alignItems: "center"
-}
+  container: {
+    flex: 1,
+    padding: 15,
+  },
 
+  titulo: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 15,
+  },
+
+  linha: {
+    backgroundColor: '#fff',
+    padding: 15,
+    marginBottom: 10,
+    borderRadius: 12,
+  },
+
+  nome: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+
+  codigo: {
+    color: '#777',
+    marginTop: 3,
+    marginBottom: 5,
+  },
+
+  estoqueBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    marginTop: 10,
+    marginBottom: 10,
+    borderRadius: 10,
+  },
+
+  estoqueNormal: {
+    backgroundColor: '#e8f5e9',
+  },
+
+  estoqueBaixo: {
+    backgroundColor: '#fff3cd',
+  },
+
+  estoqueZero: {
+    backgroundColor: '#fdecea',
+  },
+
+  estoqueIcone: {
+    fontSize: 28,
+    marginRight: 10,
+  },
+
+  estoqueLabel: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#777',
+  },
+
+  estoqueQuantidade: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+
+  estoqueQuantidadeNormal: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#2e7d32',
+  },
+
+  estoqueQuantidadeBaixo: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#ef6c00',
+  },
+
+  estoqueQuantidadeZero: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#c62828',
+  },
+
+  botaoEntrada: {
+    backgroundColor: '#c48b9f',
+    padding: 11,
+    borderRadius: 8,
+    marginTop: 12,
+    alignItems: 'center',
+  },
+
+  textoBotao: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  modalFundo: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  modalContainer: {
+    width: '90%',
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    padding: 20,
+  },
+
+  modalTitulo: {
+    fontSize: 21,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+
+  modalProduto: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+
+  modalEstoqueAtual: {
+    color: '#777',
+    marginBottom: 15,
+  },
+
+  modalInput: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 15,
+  },
+
+  modalBotaoConfirmar: {
+    backgroundColor: '#c48b9f',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+
+  modalTextoBotao: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+
+  modalBotaoCancelar: {
+    padding: 12,
+    alignItems: 'center',
+    marginTop: 5,
+  },
+
+  modalTextoCancelar: {
+    color: '#777',
+  },
 });

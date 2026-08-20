@@ -2,10 +2,8 @@ import {
   collection,
   deleteDoc,
   doc,
-  increment,
   onSnapshot,
   setDoc,
-  updateDoc,
 } from 'firebase/firestore';
 import { useContext, useEffect, useState } from 'react';
 import {
@@ -120,28 +118,17 @@ export default function HomeScreen({ navigation, setQuantidadeCarrinho }) {
     });
   }
 
-  async function baixarEstoque(produto) {
-    try {
-      const novaQtd = (produto.quantidade || 0) - 1;
+  // async function baixarEstoque(produto) {
+  //   try {
+  //     const novaQtd = (produto.quantidade || 0) - 1;
 
-      await updateDoc(doc(db, 'products', produto.id), {
-        quantidade: novaQtd,
-      });
-    } catch (error) {
-      console.error(error);
-    }
-  }
-  async function alterarEstoque(id, valor) {
-    try {
-      const ref = doc(db, 'products', id);
-
-      await updateDoc(ref, {
-        quantidade: increment(valor),
-      });
-    } catch (error) {
-      console.error(error);
-    }
-  }
+  //     await updateDoc(doc(db, 'products', produto.id), {
+  //       quantidade: novaQtd,
+  //     });
+  //   } catch (error) {
+  //     console.error(error);
+  //   }
+  // }
 
   const produtosFiltrados = produtos.filter((item) =>
     item.nome.toLowerCase().includes(busca.toLowerCase()),
@@ -311,7 +298,7 @@ export default function HomeScreen({ navigation, setQuantidadeCarrinho }) {
                       }
 
                       adicionarAoCarrinho(item);
-                      baixarEstoque(item);
+                      // baixarEstoque(item);
 
                       mostrarToast(`${item.nome} adicionado 🛍️`);
 
@@ -322,41 +309,6 @@ export default function HomeScreen({ navigation, setQuantidadeCarrinho }) {
                   >
                     <Text style={styles.textoBotao}>COMPRAR</Text>
                   </TouchableOpacity>
-
-                  {/*Fim do  Botão Comprar */}
-                  {isAdmin && (
-                    <View>
-                      <View style={styles.estoqueContainer}>
-                        <TouchableOpacity
-                          style={styles.btnEstoque}
-                          onPress={() => {
-                            if ((item.quantidade || 0) <= 0) return;
-                            console.log(item.id);
-                            alterarEstoque(item.id, -1);
-                          }}
-                        >
-                          <Text>-</Text>
-                        </TouchableOpacity>
-
-                        <Text style={styles.qtdEstoque}>{item.quantidade}</Text>
-
-                        <TouchableOpacity
-                          style={styles.btnEstoque}
-                          onPress={() => alterarEstoque(item.id, 1)}
-                        >
-                          <Text>+</Text>
-                        </TouchableOpacity>
-                      </View>
-
-                      {/* BOTÃO EXTRA */}
-                      <TouchableOpacity
-                        style={styles.btnAddRapido}
-                        onPress={() => alterarEstoque(item.id, 10)}
-                      >
-                        <Text style={{ color: '#fff' }}>+10</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
 
                   {isAdmin && (
                     <Button
@@ -389,15 +341,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 20,
   },
-
-  // card: {
-  //   backgroundColor:  "rgba(255,255,255,0.85)",
-  //   margin: 6,
-  //   borderRadius: 12,
-  //   width: largura / 2 - 18,
-  //   overflow: "hidden", // 👈 ESSENCIAL
-  //   elevation: 4, // Android sombra
-  // },
 
   card: {
     backgroundColor: 'rgba(255,255,255,0.85)',
@@ -532,48 +475,5 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 10,
     fontWeight: 'bold',
-  },
-  btnAddEstoque: {
-    backgroundColor: '#c48b9f',
-    padding: 8,
-    borderRadius: 8,
-    marginTop: 8,
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-
-  textoAddEstoque: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  estoqueContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-
-  btnEstoque: {
-    backgroundColor: '#f8e1e7',
-    padding: 6,
-    borderRadius: 8,
-    width: 40,
-    alignItems: 'center',
-  },
-
-  qtdEstoque: {
-    marginHorizontal: 10,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-
-  btnAddRapido: {
-    backgroundColor: '#c48b9f',
-    padding: 6,
-    borderRadius: 6,
-    marginTop: 5,
-    alignItems: 'center',
-    marginBottom: 10,
   },
 });

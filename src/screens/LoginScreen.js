@@ -105,6 +105,11 @@ export default function LoginScreen({ navigation }) {
 
           tipo: user.email === 'admin@admin.com' ? 'admin' : 'cliente',
 
+          // Controle de compra a prazo
+          creditoAprovado: false,
+
+          prazoPagamento: null,
+
           criadoEm: serverTimestamp(),
         },
       );

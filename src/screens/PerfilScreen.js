@@ -1,10 +1,11 @@
-import { MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import {
   collection,
   doc,
   getDoc,
   getDocs,
+  onSnapshot,
   query,
   updateDoc,
   where,
@@ -12,6 +13,7 @@ import {
 import { useContext, useEffect, useState } from 'react';
 import {
   Image,
+  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -31,7 +33,26 @@ export default function PerfilScreen({ navigation }) {
   const [totalFavoritos, setTotalFavoritos] = useState(0);
   const [totalCompras, setTotalCompras] = useState(0);
   const [imagem, setImagem] = useState(null);
-  // const [usuario, setUsuario] = useState('')
+  const [naoLidas, setNaoLidas] = useState(0);
+
+  useEffect(() => {
+    if (!usuario?.uid) return;
+
+    const notificacoesRef = collection(
+      db,
+      'usuarios',
+      usuario.uid,
+      'notificacoes',
+    );
+
+    const q = query(notificacoesRef, where('lida', '==', false));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setNaoLidas(snapshot.size);
+    });
+
+    return () => unsubscribe();
+  }, [usuario?.uid]);
 
   useEffect(() => {
     carregarDados();
@@ -176,12 +197,26 @@ export default function PerfilScreen({ navigation }) {
       console.log(erro);
     }
   }
+
+  function falarComALoja() {
+    const telefoneLoja = '5577981156809'; // 👈 coloque o WhatsApp da loja
+
+    const mensagem = encodeURIComponent(
+      'Olá! Gostaria de falar com a loja. 😊',
+    );
+
+    const url = `https://wa.me/${telefoneLoja}?text=${mensagem}`;
+
+    Linking.openURL(url);
+  }
+
   return (
     <View style={styles.container}>
       {/* Cabeçalho */}
 
       <View style={styles.header}>
         <View style={styles.avatarContainer}>
+          {/* escolher fotos */}
           <TouchableOpacity onPress={escolherFoto} style={styles.avatar}>
             {usuario?.fotoUrl ? (
               <Image
@@ -193,6 +228,7 @@ export default function PerfilScreen({ navigation }) {
             )}
           </TouchableOpacity>
 
+          {/* Editar foto */}
           <TouchableOpacity style={styles.botaoEditar} onPress={escolherFoto}>
             <MaterialIcons
               name="edit"
@@ -229,6 +265,7 @@ export default function PerfilScreen({ navigation }) {
           </View>
         </View>
 
+        {/* Meus pedidos */}
         <TouchableOpacity
           style={styles.item}
           onPress={() => navigation.navigate('MeusPedidos')}
@@ -238,6 +275,7 @@ export default function PerfilScreen({ navigation }) {
           <Text>›</Text>
         </TouchableOpacity>
 
+        {/* Meus favoritos */}
         <TouchableOpacity
           style={styles.item}
           onPress={() => navigation.navigate('Favoritos')}
@@ -247,36 +285,65 @@ export default function PerfilScreen({ navigation }) {
           <Text>›</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.item}>
+        {/* Meus endereços */}
+        <TouchableOpacity
+          style={styles.item}
+          onPress={() => navigation.navigate('MeusEnderecos')}
+        >
           <Text style={styles.texto}>📍 Meus Endereços</Text>
+          <Text>›</Text>
+        </TouchableOpacity>
+
+        {/* Meus pagamentos */}
+        <TouchableOpacity
+          style={styles.item}
+          onPress={() => navigation.navigate('FormasPagamento')}
+        >
+          <Text style={styles.texto}>💳 Formas de pagamento</Text>
+
+          <Text style={styles.texto}>›</Text>
+        </TouchableOpacity>
+
+        {/* Minhas notificações */}
+        <TouchableOpacity
+          style={styles.item}
+          onPress={() => navigation.navigate('Notificacoes')}
+        >
+          <View style={styles.notificacaoLinha}>
+            <Text style={styles.texto}>🔔 Notificações</Text>
+
+            {naoLidas > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeTexto}>
+                  {naoLidas > 99 ? '99+' : naoLidas}
+                </Text>
+              </View>
+            )}
+          </View>
 
           <Text>›</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.item}>
-          <Text style={styles.texto}>💳 Formas de Pagamento</Text>
-
+        {/* Falar com a loja */}
+        {/* Falar com a loja */}
+        <TouchableOpacity style={styles.item} onPress={falarComALoja}>
+          <Text style={styles.texto}>💬 Falar com a Loja</Text>
           <Text>›</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.item}>
-          <Text style={styles.texto}>🔔 Notificações</Text>
-
+        {/* minhas configuraçôes*/}
+        <TouchableOpacity
+          style={styles.item}
+          onPress={() => navigation.navigate('Configuracoes')}
+        >
+          <Text style={styles.texto}>
+            <Ionicons name="settings-outline" size={24} color="#c48b9f" />{' '}
+            Configurações
+          </Text>
           <Text>›</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.item}>
-          <Text style={styles.texto}>☎️ Falar com a Loja</Text>
-
-          <Text>›</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.item}>
-          <Text style={styles.texto}>⚙️ Configurações</Text>
-
-          <Text>›</Text>
-        </TouchableOpacity>
-
+        {/* Sair da conta */}
         <TouchableOpacity style={styles.sair} onPress={logout}>
           <Text style={styles.sairTexto}>🚪 Sair da Conta</Text>
         </TouchableOpacity>
@@ -387,8 +454,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   avatar: {
-    width: 90,
-    height: 90,
+    width: 100,
+    height: 100,
     borderRadius: 45,
     backgroundColor: '#d8a0a8',
     justifyContent: 'center',
@@ -433,5 +500,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#FFF',
+  },
+  notificacaoLinha: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  badge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#C48B9F',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+    paddingHorizontal: 5,
+  },
+
+  badgeTexto: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 });

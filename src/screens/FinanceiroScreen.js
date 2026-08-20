@@ -1,222 +1,368 @@
-import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  updateDoc,
+} from 'firebase/firestore';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 
 import {
-  ActivityIndicator,
-  Dimensions,
+  Alert,
   FlatList,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 
+import { AuthContext } from '../context/AuthContext';
 import { db } from '../firebase/config';
 
-export default function VendasScreen() {
-  const screenWidth = Dimensions.get('window').width;
+export default function FinanceiroScreen() {
+  const { usuario } = useContext(AuthContext);
 
-  const [vendas, setVendas] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [mostrarDashboard, setMostrarDashboard] = useState(false);
-  const [faturamento, setFaturamento] = useState(0);
-  const [custos, setCustos] = useState(0);
-  const [lucro, setLucro] = useState(0);
-  const [quantidadeVendas, setQuantidadeVendas] = useState(0);
+  const [parcelas, setParcelas] = useState([]);
+
+  const [resumoFinanceiro, setResumoFinanceiro] = useState({
+    receber: 0,
+    recebido: 0,
+    vencido: 0,
+    pendente: 0,
+  });
 
   useEffect(() => {
-    const q = query(collection(db, 'vendas'), orderBy('criadoEm', 'desc'));
+    if (usuario?.tipo === 'admin') {
+      carregarFinanceiro();
+    }
+  }, [usuario]);
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const lista = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+  async function carregarFinanceiro() {
+    try {
+      const snapshot = await getDocs(collection(db, 'pedidos'));
 
-      setVendas(lista);
+      const todasParcelas = [];
 
-      let faturamentoTotal = 0;
-      let custoTotal = 0;
-      let lucroTotal = 0;
+      snapshot.docs.forEach((docItem) => {
+        const pedido = {
+          id: docItem.id,
+          ...docItem.data(),
+        };
 
-      lista.forEach((item) => {
-        const venda = Number(item.precoVenda) || 0;
+        // Só interessa compra a prazo
+        if (
+          pedido.formaPagamento !== 'prazo' ||
+          !Array.isArray(pedido.parcelas)
+        ) {
+          return;
+        }
 
-        const compra = Number(item.precoCompra) || 0;
+        pedido.parcelas.forEach((parcela) => {
+          todasParcelas.push({
+            ...parcela,
 
-        const qtd = Number(item.quantidade) || 1;
+            pedidoId: pedido.id,
 
-        faturamentoTotal += venda * qtd;
+            cliente: pedido.cliente,
 
-        custoTotal += compra * qtd;
+            email: pedido.email,
 
-        lucroTotal += (venda - compra) * qtd;
+            totalPedido: pedido.total,
+
+            cidade: pedido.cidade,
+
+            dataPedido: pedido.data,
+          });
+        });
       });
 
-      setFaturamento(faturamentoTotal);
+      setParcelas(todasParcelas);
 
-      setCustos(custoTotal);
+      calcularResumo(todasParcelas);
+    } catch (error) {
+      console.log('❌ Erro ao carregar financeiro:', error);
+    }
+  }
 
-      setLucro(lucroTotal);
+  function calcularResumo(lista) {
+    let receber = 0;
+    let recebido = 0;
+    let vencido = 0;
+    let pendente = 0;
 
-      setQuantidadeVendas(lista.length);
+    const hoje = new Date();
 
-      setLoading(false);
+    hoje.setHours(0, 0, 0, 0);
+
+    lista.forEach((parcela) => {
+      const valor = Number(parcela.valor) || 0;
+
+      // PARCELA PAGA
+      if (parcela.status === 'pago') {
+        recebido += valor;
+        return;
+      }
+
+      // AINDA NÃO PAGA
+      receber += valor;
+
+      if (!parcela.vencimento) {
+        pendente += valor;
+        return;
+      }
+
+      const vencimento = parcela.vencimento?.toDate
+        ? parcela.vencimento.toDate()
+        : new Date(parcela.vencimento);
+
+      vencimento.setHours(0, 0, 0, 0);
+
+      if (vencimento < hoje) {
+        vencido += valor;
+      } else {
+        pendente += valor;
+      }
     });
 
-    return () => unsubscribe();
-  }, []);
+    setResumoFinanceiro({
+      receber,
+      recebido,
+      vencido,
+      pendente,
+    });
+  }
 
-  function formatar(valor) {
+  function formatarPreco(valor) {
     return Number(valor).toLocaleString('pt-BR', {
       style: 'currency',
       currency: 'BRL',
     });
   }
 
-  const dadosGrafico = useMemo(() => {
-    const ultimasVendas = vendas.slice(0, 6).reverse();
+  function formatarData(data) {
+    if (!data) return '';
+
+    const dataFormatada = data?.toDate ? data.toDate() : new Date(data);
+
+    return dataFormatada.toLocaleDateString('pt-BR');
+  }
+
+  function obterStatus(parcela) {
+    if (parcela.status === 'pago') {
+      return {
+        texto: 'Paga',
+        icone: '🟢',
+        estilo: styles.statusPago,
+      };
+    }
+
+    if (!parcela.vencimento) {
+      return {
+        texto: 'Pendente',
+        icone: '🟡',
+        estilo: styles.statusPendente,
+      };
+    }
+
+    const hoje = new Date();
+
+    hoje.setHours(0, 0, 0, 0);
+
+    const vencimento = parcela.vencimento?.toDate
+      ? parcela.vencimento.toDate()
+      : new Date(parcela.vencimento);
+
+    vencimento.setHours(0, 0, 0, 0);
+
+    if (vencimento < hoje) {
+      return {
+        texto: 'Vencida',
+        icone: '🔴',
+        estilo: styles.statusVencida,
+      };
+    }
+
+    if (vencimento.getTime() === hoje.getTime()) {
+      return {
+        texto: 'Vence hoje',
+        icone: '🟠',
+        estilo: styles.statusHoje,
+      };
+    }
 
     return {
-      labels: ultimasVendas.map((item) => {
-        const data = item.criadoEm?.toDate
-          ? item.criadoEm.toDate()
-          : new Date();
-
-        return `${data.getDate()}/${data.getMonth() + 1}`;
-      }),
-
-      datasets: [
-        {
-          data: ultimasVendas.map((item) => {
-            const venda = Number(item.precoVenda) || 0;
-            const custo = Number(item.precoCompra) || 0;
-            const qtd = Number(item.quantidade) || 1;
-
-            return (venda - custo) * qtd;
-          }),
-        },
-      ],
+      texto: 'Pendente',
+      icone: '🟡',
+      estilo: styles.statusPendente,
     };
-  }, [vendas]);
+  }
 
-  if (loading) {
+  async function marcarComoPaga(parcela) {
+    try {
+      Alert.alert(
+        'Confirmar pagamento',
+        `Marcar a ${parcela.numero}ª parcela de ${formatarPreco(
+          parcela.valor,
+        )} como paga?`,
+        [
+          {
+            text: 'Cancelar',
+            style: 'cancel',
+          },
+          {
+            text: 'Confirmar',
+            onPress: async () => {
+              await atualizarParcela(parcela);
+            },
+          },
+        ],
+      );
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  async function atualizarParcela(parcela) {
+    try {
+      const pedidoRef = doc(db, 'pedidos', parcela.pedidoId);
+
+      const pedidoSnap = await getDoc(pedidoRef);
+
+      if (!pedidoSnap.exists()) {
+        Alert.alert('Erro', 'Pedido não encontrado.');
+        return;
+      }
+
+      const pedido = pedidoSnap.data();
+
+      const parcelasAtualizadas = pedido.parcelas.map((item) => {
+        if (item.numero === parcela.numero) {
+          return {
+            ...item,
+            status: 'pago',
+            pagoEm: new Date(),
+          };
+        }
+
+        return item;
+      });
+
+      await updateDoc(pedidoRef, {
+        parcelas: parcelasAtualizadas,
+      });
+
+      Alert.alert('Pagamento registrado', 'A parcela foi marcada como paga.');
+
+      carregarFinanceiro();
+    } catch (error) {
+      console.log('❌ Erro ao atualizar parcela:', error);
+
+      Alert.alert('Erro', 'Não foi possível registrar o pagamento.');
+    }
+  }
+
+  if (usuario?.tipo !== 'admin') {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#c8a97e" />
-
-        <Text style={styles.loadingText}>Carregando vendas...</Text>
+      <View style={styles.semAcesso}>
+        <Text style={styles.semAcessoTexto}>
+          Acesso restrito ao administrador.
+        </Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.titulo}>💎 Dashboard de Vendas</Text>
-
-      <Text style={styles.subtitulo}>
-        Controle diário de faturamento e lucro
-      </Text>
-
-      <TouchableOpacity
-        style={styles.botaoDashboard}
-        onPress={() => setMostrarDashboard(!mostrarDashboard)}
-      >
-        <Text style={styles.textoBotaoDashboard}>
-          {mostrarDashboard ? 'Fechar Dashboard ▲' : '📊 Dashboard ▼'}
-        </Text>
-      </TouchableOpacity>
-
-      {mostrarDashboard && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.cardsContainer}
-        >
-          <View style={styles.card}>
-            <Text style={styles.cardTitulo}>Faturamento</Text>
-
-            <Text style={styles.cardValor}>{formatar(faturamento)}</Text>
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.cardTitulo}>Custos</Text>
-
-            <Text style={[styles.cardValor, { color: '#d9534f' }]}>
-              {formatar(custos)}
-            </Text>
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.cardTitulo}>Lucro</Text>
-
-            <Text style={[styles.cardValor, { color: '#28a745' }]}>
-              {formatar(lucro)}
-            </Text>
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.cardTitulo}>Vendas</Text>
-
-            <Text style={styles.cardValor}>🛍️ {quantidadeVendas}</Text>
-          </View>
-        </ScrollView>
-      )}
-
-      <Text style={styles.listaTitulo}>Últimas vendas</Text>
-
       <FlatList
-        data={vendas}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
-        renderItem={({ item }) => {
-          const venda = Number(item.precoVenda) || 0;
-          const custo = Number(item.precoCompra) || 0;
-          const lucroVenda = venda - custo;
+        data={parcelas}
+        keyExtractor={(item) => `${item.pedidoId}-${item.numero}`}
+        ListHeaderComponent={
+          <View>
+            <Text style={styles.titulo}>💰 Financeiro</Text>
 
-          const criadoEm = item.criadoEm?.toDate
-            ? item.criadoEm.toDate()
-            : new Date();
+            <View style={styles.grid}>
+              <View style={styles.cardResumo}>
+                <Text style={styles.icone}>💰</Text>
+
+                <Text style={styles.label}>A receber</Text>
+
+                <Text style={styles.valor}>
+                  {formatarPreco(resumoFinanceiro.receber)}
+                </Text>
+              </View>
+
+              <View style={styles.cardResumo}>
+                <Text style={styles.icone}>🟢</Text>
+
+                <Text style={styles.label}>Recebido</Text>
+
+                <Text style={styles.valor}>
+                  {formatarPreco(resumoFinanceiro.recebido)}
+                </Text>
+              </View>
+
+              <View style={styles.cardResumo}>
+                <Text style={styles.icone}>🔴</Text>
+
+                <Text style={styles.label}>Vencido</Text>
+
+                <Text style={styles.valor}>
+                  {formatarPreco(resumoFinanceiro.vencido)}
+                </Text>
+              </View>
+
+              <View style={styles.cardResumo}>
+                <Text style={styles.icone}>🟡</Text>
+
+                <Text style={styles.label}>Pendente</Text>
+
+                <Text style={styles.valor}>
+                  {formatarPreco(resumoFinanceiro.pendente)}
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.tituloParcelas}>📋 Parcelas</Text>
+          </View>
+        }
+        renderItem={({ item }) => {
+          const status = obterStatus(item);
 
           return (
-            <View style={styles.vendaCard}>
-              <View style={styles.topoVenda}>
-                <Text style={styles.nome}>{item.nome || 'Venda'}</Text>
+            <View style={styles.parcelaCard}>
+              <View style={styles.topoParcela}>
+                <View>
+                  <Text style={styles.cliente}>👤 {item.cliente}</Text>
 
-                <Text style={styles.criadoEmVenda}>
-                  {criadoEm.toLocaleDateString('pt-BR')}
-                </Text>
+                  <Text style={styles.pedido}>Pedido: {item.pedidoId}</Text>
+                </View>
+
+                <Text style={styles.numero}>{item.numero}ª</Text>
               </View>
 
-              <View style={styles.infoLinha}>
-                <Text style={styles.label}>Valor venda</Text>
+              <Text style={styles.valorParcela}>
+                {formatarPreco(item.valor)}
+              </Text>
 
-                <Text style={styles.precoVenda}>{formatar(venda)}</Text>
-              </View>
+              <Text style={styles.vencimento}>
+                📅 Vencimento: {formatarData(item.vencimento)}
+              </Text>
 
-              <View style={styles.infoLinha}>
-                <Text style={styles.label}>Custo</Text>
+              <Text style={styles.dias}>⏱️ {item.dias} dias</Text>
 
-                <Text style={styles.precoCompra}>{formatar(custo)}</Text>
-              </View>
+              <Text style={[styles.status, status.estilo]}>
+                {status.icone} {status.texto}
+              </Text>
 
-              <View style={styles.infoLinha}>
-                <Text style={styles.label}>Lucro</Text>
-
-                <Text
-                  style={[
-                    styles.valorLucro,
-                    {
-                      color: lucroVenda >= 0 ? '#28a745' : '#d9534f',
-                    },
-                  ]}
+              {item.status !== 'pago' && (
+                <TouchableOpacity
+                  style={styles.botaoPagar}
+                  onPress={() => marcarComoPaga(item)}
                 >
-                  {formatar(lucroVenda)}
-                </Text>
-              </View>
+                  <Text style={styles.textoBotao}>💰 Marcar como paga</Text>
+                </TouchableOpacity>
+              )}
             </View>
           );
         }}
@@ -228,158 +374,149 @@ export default function VendasScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f5f2',
-    paddingHorizontal: 15,
-    paddingTop: 20,
+    backgroundColor: '#f5f5f5',
   },
 
   titulo: {
-    fontSize: 28,
+    fontSize: 25,
     fontWeight: 'bold',
-    color: '#3d312b',
+    color: '#a06a7d',
+    margin: 15,
   },
 
-  subtitulo: {
-    marginTop: 5,
-    color: '#8a7b70',
-    marginBottom: 15,
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
   },
 
-  chart: {
-    marginVertical: 10,
-    borderRadius: 20,
-    alignSelf: 'center',
-    elevation: 4,
-  },
-
-  cardsContainer: {
-    paddingVertical: 20,
-    paddingHorizontal: 5,
-  },
-
-  card: {
-    width: 180,
-    minHeight: 120,
-
-    backgroundColor: '#ffffff',
-
-    borderRadius: 18,
-
-    padding: 18,
-
-    marginBottom: 150,
-
-    marginRight: 12,
-
-    marginVertical: 10,
-
-    elevation: 4,
-
-    shadowColor: '#000',
-
-    shadowOpacity: 0.08,
-
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-
-    shadowRadius: 5,
-  },
-
-  cardTitulo: {
-    color: '#8a7b70',
-    fontSize: 13,
-  },
-
-  cardValor: {
-    marginTop: 10,
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#3d312b',
-  },
-
-  listaTitulo: {
-    marginTop: 15,
+  cardResumo: {
+    width: '48%',
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 15,
     marginBottom: 10,
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#3d312b',
-  },
-
-  vendaCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 18,
-    padding: 16,
-    marginBottom: 12,
     elevation: 3,
   },
 
-  topoVenda: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-
-  nome: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#3d312b',
-  },
-
-  criadoEmVenda: {
-    color: '#8a7b70',
-    fontSize: 12,
-  },
-
-  infoLinha: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
+  icone: {
+    fontSize: 22,
   },
 
   label: {
+    marginTop: 6,
     color: '#777',
+    fontSize: 13,
   },
 
-  precoVenda: {
+  valor: {
+    marginTop: 4,
+    fontSize: 17,
     fontWeight: 'bold',
-    color: '#3d312b',
+    color: '#a06a7d',
   },
 
-  precoCompra: {
+  tituloParcelas: {
+    fontSize: 19,
     fontWeight: 'bold',
-    color: '#d9534f',
+    color: '#a06a7d',
+    margin: 15,
+    marginTop: 20,
   },
 
-  valorLucro: {
+  parcelaCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 10,
+    marginBottom: 10,
+    padding: 15,
+    borderRadius: 15,
+    elevation: 2,
+  },
+
+  topoParcela: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+
+  cliente: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+
+  pedido: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#888',
+  },
+
+  numero: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#a06a7d',
+  },
+
+  valorParcela: {
+    marginTop: 12,
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#c48b9f',
+  },
+
+  vencimento: {
+    marginTop: 6,
+    color: '#666',
+  },
+
+  dias: {
+    marginTop: 3,
+    color: '#888',
+    fontSize: 12,
+  },
+
+  status: {
+    marginTop: 8,
     fontWeight: 'bold',
   },
 
-  loadingContainer: {
+  statusPago: {
+    color: '#4CAF50',
+  },
+
+  statusPendente: {
+    color: '#d49a00',
+  },
+
+  statusVencida: {
+    color: '#e53935',
+  },
+
+  statusHoje: {
+    color: '#ef6c00',
+  },
+
+  botaoPagar: {
+    marginTop: 12,
+    backgroundColor: '#4CAF50',
+    padding: 11,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+
+  textoBotao: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+
+  semAcesso: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8f5f2',
   },
 
-  loadingText: {
-    marginTop: 10,
-    color: '#777',
-  },
-  botaoDashboard: {
-    backgroundColor: '#c8a97e',
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 10,
-  },
-
-  textoBotaoDashboard: {
-    color: '#fff',
-    fontWeight: 'bold',
+  semAcessoTexto: {
     fontSize: 16,
+    color: '#777',
   },
 });

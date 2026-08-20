@@ -1,269 +1,291 @@
-import * as Clipboard from 'expo-clipboard';
-import { deleteDoc, doc, updateDoc } from 'firebase/firestore';
-import { useContext } from 'react';
-import {
-  Alert,
-  FlatList,
-  StyleSheet,
-  Text,
-  ToastAndroid,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import QRCode from 'react-native-qrcode-svg';
-import { AuthContext } from '../context/AuthContext';
-import { db } from '../firebase/config';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-export default function PedidoDetalheScreen({ route, navigation }) {
-  const { usuario } = useContext(AuthContext);
-  const isAdmin = usuario?.tipo === 'admin';
-
+export default function PedidoDetalhe({ route }) {
   const { pedido } = route.params;
 
   function formatarPreco(valor) {
-    return Number(valor).toLocaleString('pt-BR', {
+    return Number(valor || 0).toLocaleString('pt-BR', {
       style: 'currency',
       currency: 'BRL',
     });
   }
-  async function atualizarStatus() {
-    try {
-      await updateDoc(doc(db, 'pedidos', pedido.id), {
-        status: proximoStatus(pedido.status),
-      });
 
-      alert('Status atualizado!');
-    } catch (error) {
-      console.error(error);
+  function formatarData(data) {
+    if (!data) return '';
+
+    const dataCompra = data?.toDate ? data.toDate() : new Date(data);
+
+    return dataCompra.toLocaleDateString('pt-BR');
+  }
+
+  function nomeStatus(status) {
+    switch (status) {
+      case 'pago':
+        return 'Pagamento aprovado';
+
+      case 'aguardando':
+        return 'Aguardando pagamento';
+
+      case 'pendente':
+        return 'Pedido pendente';
+
+      case 'entregue':
+        return 'Pedido entregue';
+
+      default:
+        return status || 'Em processamento';
     }
   }
 
-  async function confirmarPagamento() {
-    try {
-      await updateDoc(doc(db, 'pedidos', pedido.id), {
-        statusPagamento: 'pago',
-      });
+  function corStatus(status) {
+    switch (status) {
+      case 'pago':
+        return '#2e7d32';
 
-      alert('Pagamento confirmado!');
-    } catch (error) {
-      console.error(error);
+      case 'aguardando':
+        return '#f9a825';
+
+      case 'entregue':
+        return '#1565c0';
+
+      default:
+        return '#ef6c00';
     }
   }
-
-  function proximoStatus(statusAtual) {
-    if (statusAtual === 'pendente') return 'saiu_entrega';
-    if (statusAtual === 'saiu_entrega') return 'entregue';
-    return 'entregue';
-  }
-
-  function renderStatus(status) {
-    if (status === 'pendente') {
-      return '🟡 Pendente';
-    }
-
-    if (status === 'saiu_entrega') {
-      return '🚚 Saiu para entrega';
-    }
-
-    if (status === 'entregue') {
-      return '🟢 Entregue';
-    }
-
-    return status;
-  }
-
-  // function renderPagamento(tipo) {
-  //     if (tipo === "pix") return "📲 PIX";
-  //     if (tipo === "dinheiro") return "💵 Dinheiro";
-  //     if (tipo === "cartao") return "💳 Cartão";
-  //     return tipo;
-  // }
-
-  async function excluirPedido() {
-    try {
-      await deleteDoc(doc(db, 'pedidos', pedido.id));
-
-      alert('Pedido excluído!');
-
-      // 👇 voltar para tela anterior
-      navigation.goBack();
-    } catch (error) {
-      console.error(error);
-      alert('Erro ao excluir pedido');
-    }
-  }
-
-  function confirmarExclusao() {
-    Alert.alert('Excluir Pedido', 'Tem certeza que deseja excluir?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Excluir', style: 'destructive', onPress: excluirPedido },
-    ]);
-  }
-
-  // async function limparPedidos() {
-  //     const snapshot = await getDocs(collection(db, "pedidos"));
-
-  //     snapshot.forEach(async (docItem) => {
-  //         await deleteDoc(doc(db, "pedidos", docItem.id));
-  //     });
-
-  //     alert("Todos pedidos foram removidos!");
-  // }
-
-  function copiarPix() {
-    const chavePix = 'gisamori@gmail.com'; // 👈 coloque sua chave real
-
-    Clipboard.setStringAsync(chavePix);
-    ToastAndroid.show('Chave copiada!', ToastAndroid.SHORT);
-  }
-  <Text>{pedido.formaPagamento}</Text>;
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.titulo}>Detalhes do Pedido</Text>
+    <ScrollView style={styles.container}>
+      {/* CABEÇALHO */}
+      <View style={styles.header}>
+        <Text style={styles.titulo}>Detalhes do Pedido</Text>
 
-      <Text>Cliente: {pedido.cliente?.nome}</Text>
-      <Text>Telefone: {pedido.cliente?.telefone}</Text>
-      <Text>Endereço: {pedido.endereco}</Text>
-
-      {/* 🔘 BOTÕES MAIS PRA CIMA */}
-      <View style={{ flexDirection: 'row', marginTop: 15 }}>
-        <TouchableOpacity
-          style={[
-            styles.botao,
-            styles.botaoPrimario,
-            { flex: 1, marginRight: 5 },
-          ]}
-          onPress={atualizarStatus}
-        >
-          <Text style={styles.botaoTexto}>🚚 Status</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.botao,
-            styles.botaoSecundario,
-            { flex: 1, marginRight: 5 },
-          ]}
-          onPress={confirmarPagamento}
-        >
-          <Text style={styles.botaoTexto}>💰 Pago</Text>
-        </TouchableOpacity>
-
-        {isAdmin && (
-          <TouchableOpacity
-            style={[styles.botao, styles.botaoPerigo, { flex: 1 }]}
-            onPress={confirmarExclusao}
-          >
-            <Text style={styles.botaoTexto}>🗑️</Text>
-          </TouchableOpacity>
-        )}
+        <Text style={styles.data}>📅 {formatarData(pedido.data)}</Text>
       </View>
 
-      {/* 📲 QR CODE CENTRALIZADO */}
-      {pedido.formaPagamento === 'pix' && (
-        <View
-          style={{
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginVertical: 20,
-          }}
+      {/* STATUS */}
+      <View style={styles.statusCard}>
+        <Text style={styles.statusTitulo}>Status do pedido</Text>
+
+        <Text
+          style={[styles.status, { color: corStatus(pedido.statusPagamento) }]}
         >
-          <Text style={{ marginBottom: 10 }}>Pagamento via PIX</Text>
+          ● {nomeStatus(pedido.statusPagamento)}
+        </Text>
+      </View>
 
-          <QRCode value={`PIX ${pedido.total}`} size={200} />
+      {/* PRODUTOS */}
+      <View style={styles.card}>
+        <Text style={styles.secaoTitulo}>🛍️ Produtos</Text>
 
-          {/* 📋 BOTÃO COPIAR */}
-          <TouchableOpacity
-            style={{
-              marginTop: 10,
-              backgroundColor: '#4CAF50',
-              padding: 10,
-              borderRadius: 8,
-            }}
-            onPress={copiarPix}
-          >
-            <Text style={{ color: '#fff', fontWeight: 'bold' }}>
-              📋 Copiar chave PIX
+        {pedido.produtos?.map((produto, index) => (
+          <View key={index} style={styles.produto}>
+            <View style={styles.produtoInfo}>
+              <Text style={styles.produtoNome}>{produto.nome}</Text>
+
+              <Text style={styles.quantidade}>
+                Quantidade: {produto.quantidade}
+              </Text>
+            </View>
+
+            <Text style={styles.preco}>
+              {formatarPreco(produto.totalVenda)}
             </Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* 📦 PRODUTOS */}
-      <FlatList
-        data={pedido.produtos}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Text>{item.nome}</Text>
-            <Text>Qtd: {item.quantidade}</Text>
-            <Text>{formatarPreco(item.preco)}</Text>
           </View>
-        )}
-      />
-    </View>
+        ))}
+
+        <View style={styles.linha} />
+
+        <View style={styles.totalContainer}>
+          <Text style={styles.totalTexto}>Total</Text>
+
+          <Text style={styles.total}>{formatarPreco(pedido.total)}</Text>
+        </View>
+      </View>
+
+      {/* PAGAMENTO */}
+      <View style={styles.card}>
+        <Text style={styles.secaoTitulo}>💳 Pagamento</Text>
+
+        <Text style={styles.info}>Forma de pagamento</Text>
+
+        <Text style={styles.infoValor}>
+          {pedido.formaPagamento || 'Não informado'}
+        </Text>
+      </View>
+
+      {/* ENDEREÇO */}
+      <View style={styles.card}>
+        <Text style={styles.secaoTitulo}>📍 Endereço de entrega</Text>
+
+        <Text style={styles.endereco}>{pedido.endereco}</Text>
+
+        <Text style={styles.endereco}>Nº {pedido.numero}</Text>
+
+        {pedido.complemento ? (
+          <Text style={styles.endereco}>{pedido.complemento}</Text>
+        ) : null}
+
+        <Text style={styles.endereco}>{pedido.bairro}</Text>
+
+        <Text style={styles.endereco}>
+          {pedido.cidade} - {pedido.estado}
+        </Text>
+      </View>
+
+      {/* CLIENTE */}
+      <View style={styles.card}>
+        <Text style={styles.secaoTitulo}>👤 Cliente</Text>
+
+        <Text style={styles.info}>Nome</Text>
+
+        <Text style={styles.infoValor}>{pedido.cliente}</Text>
+
+        <Text style={styles.info}>E-mail</Text>
+
+        <Text style={styles.infoValor}>{pedido.email}</Text>
+
+        <Text style={styles.info}>Telefone</Text>
+
+        <Text style={styles.infoValor}>{pedido.contato}</Text>
+      </View>
+
+      <View style={styles.finalEspaco} />
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 15,
     backgroundColor: '#f5f5f5',
-    alignItems: 'stretch',
+  },
+
+  header: {
+    backgroundColor: '#111',
+    paddingTop: 25,
+    paddingBottom: 25,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
   },
 
   titulo: {
-    fontSize: 18,
+    color: '#fff',
+    fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 10,
   },
 
-  subtitulo: {
-    marginTop: 10,
+  data: {
+    color: '#ccc',
+    marginTop: 6,
+    fontSize: 14,
+  },
+
+  statusCard: {
+    backgroundColor: '#fff',
+    margin: 15,
+    padding: 18,
+    borderRadius: 15,
+    elevation: 3,
+  },
+
+  statusTitulo: {
+    fontSize: 14,
+    color: '#777',
+    marginBottom: 8,
+  },
+
+  status: {
+    fontSize: 17,
     fontWeight: 'bold',
   },
 
   card: {
     backgroundColor: '#fff',
-    padding: 10,
-    marginTop: 5,
-    borderRadius: 10,
+    marginHorizontal: 15,
+    marginBottom: 15,
+    padding: 18,
+    borderRadius: 15,
+    elevation: 3,
+  },
+
+  secaoTitulo: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 15,
+  },
+
+  produto: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+
+  produtoInfo: {
+    flex: 1,
+    paddingRight: 10,
+  },
+
+  produtoNome: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+
+  quantidade: {
+    marginTop: 4,
+    color: '#777',
+    fontSize: 13,
+  },
+
+  preco: {
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+
+  linha: {
+    height: 1,
+    backgroundColor: '#eee',
+    marginVertical: 5,
+  },
+
+  totalContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+
+  totalTexto: {
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 
   total: {
-    marginTop: 10,
+    fontSize: 20,
     fontWeight: 'bold',
+    color: '#D4AF37',
+  },
+
+  info: {
+    color: '#888',
+    fontSize: 13,
+    marginTop: 8,
+  },
+
+  infoValor: {
     fontSize: 16,
-    color: '#e60023',
+    fontWeight: '500',
+    marginTop: 3,
   },
 
-  botoesContainer: {
-    marginTop: 15,
-    gap: 10, // espaço entre botões (React Native mais novo)
+  endereco: {
+    fontSize: 15,
+    marginBottom: 5,
+    color: '#444',
   },
 
-  botao: {
-    paddingVertical: 10,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-
-  botaoTexto: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-
-  botaoPrimario: {
-    backgroundColor: '#4CAF50',
-  },
-
-  botaoSecundario: {
-    backgroundColor: '#2196F3',
-  },
-
-  botaoPerigo: {
-    backgroundColor: '#e60023',
+  finalEspaco: {
+    height: 30,
   },
 });

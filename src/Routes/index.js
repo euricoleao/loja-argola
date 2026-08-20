@@ -10,18 +10,34 @@ import Home from '../screens/HomeScreen';
 import ProductDetailScreen from '../screens/ProductDetailScreen';
 
 import { Ionicons } from '@expo/vector-icons';
+import AlterarSenhaScreen from '../screens/AlterarSenhaScreen';
 import Carrinho from '../screens/CartScreen';
 import CheckoutScreen from '../screens/CheckoutScreen';
+import ClienteDetalheScreen from '../screens/ClienteDetalheScreen';
+import ClientesScreen from '../screens/ClientesScreen';
+import ConfiguracoesScreen from '../screens/ConfiguracoesScreen';
+import CreditoPrazoScreen from '../screens/CreditoPrazoScreen';
+import DadosContaScreen from '../screens/DadosContaScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import EditarProdutoScreen from '../screens/EditarProdutoScreen';
+import EnderecosScreen from '../screens/EnderecosScreen';
 import EstoqueScreen from '../screens/EstoqueScreen';
 import FavoritosScreen from '../screens/FavoritosScreen';
 import FinanceiroScreen from '../screens/FinanceiroScreen';
+import GerenciarClientesScreen from '../screens/GerenciarClientesScreen';
+import GerenciarNotificacoesScreen from '../screens/GerenciarNotificacoesScreen';
 import ListaProdutosScreen from '../screens/ListaProdutosScreen';
 import Login from '../screens/LoginScreen';
+import NotificacoesScreen from '../screens/NotificacoesScreen';
+import PagamentosScreen from '../screens/PagamentosScreen';
 import PedidoDetalheScreen from '../screens/PedidoDetalheScreen';
 import PedidosScreen from '../screens/PedidosScreen';
 import PerfilScreen from '../screens/PerfilScreen';
+import PrazoPagamentoScreen from '../screens/PrazoPagamentoScreen';
+import PrivacidadeSegurancaScreen from '../screens/PrivacidadeSegurancaScreen';
+import SobreAplicativoScreen from '../screens/SobreAplicativoScreen';
+import TermosUsoScreen from '../screens/TermosUsoScreen';
+import VendasFinanceiroScreen from '../screens/VendasFinanceiroScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -165,6 +181,31 @@ function AdminStack() {
         component={FinanceiroScreen}
         options={{ title: 'Financeiro 💰' }}
       />
+
+      <Stack.Screen
+        name="VendasFinanceiro"
+        component={VendasFinanceiroScreen}
+        options={{
+          title: 'Vendas 💰',
+        }}
+      />
+
+      <Stack.Screen
+        name="GerenciarClientes"
+        component={GerenciarClientesScreen}
+      />
+
+      <Stack.Screen name="Clientes" component={ClientesScreen} />
+
+      <Stack.Screen name="CreditoPrazo" component={CreditoPrazoScreen} />
+
+      <Stack.Screen
+        name="ClienteDetalhe"
+        component={ClienteDetalheScreen}
+        options={{
+          title: 'Detalhes do Cliente',
+        }}
+      />
     </Stack.Navigator>
   );
 }
@@ -182,7 +223,9 @@ function PedidosStack() {
       <Stack.Screen
         name="PedidosLista"
         component={PedidosScreen}
-        options={{ title: 'Pedidos' }}
+        options={{
+          headerShown: false,
+        }}
       />
 
       <Stack.Screen
@@ -230,6 +273,66 @@ function PerfilStack() {
           title: 'Detalhes do Pedido',
         }}
       />
+
+      <Stack.Screen
+        name="MeusEnderecos"
+        component={EnderecosScreen}
+        options={{ title: 'Meus Endereços' }}
+      />
+
+      <Stack.Screen
+        name="FormasPagamento"
+        component={PagamentosScreen}
+        options={{ title: 'Formas de Pagamento' }}
+      />
+
+      <Stack.Screen
+        name="PrazoPagamento"
+        component={PrazoPagamentoScreen}
+        options={{ title: 'Compra a prazo' }}
+      />
+
+      <Stack.Screen
+        name="Notificacoes"
+        component={NotificacoesScreen}
+        options={{
+          title: 'Notificações 🔔',
+        }}
+      />
+      <Stack.Screen
+        name="Configuracoes"
+        component={ConfiguracoesScreen}
+        options={{
+          title: 'Configurações',
+        }}
+      />
+      <Stack.Screen
+        name="DadosConta"
+        component={DadosContaScreen}
+        options={{
+          title: 'Dados da conta',
+        }}
+      />
+      <Stack.Screen
+        name="AlterarSenha"
+        component={AlterarSenhaScreen}
+        options={{
+          title: 'Alterar senha',
+        }}
+      />
+      <Stack.Screen
+        name="GerenciarNotificacoes"
+        component={GerenciarNotificacoesScreen}
+        options={{
+          title: 'Notificações',
+        }}
+      />
+      <Stack.Screen
+        name="PrivacidadeSeguranca"
+        component={PrivacidadeSegurancaScreen}
+      />
+      <Stack.Screen name="TermosUso" component={TermosUsoScreen} />
+      <Stack.Screen name="SobreAplicativo" component={SobreAplicativoScreen} />
     </Stack.Navigator>
   );
 }
@@ -409,7 +512,39 @@ function Tabs() {
         <Tab.Screen
           name="Pedidos"
           component={PedidosStack}
-          options={{ tabBarIcon: () => <Text>📦</Text> }}
+          options={({ navigation }) => ({
+            title: 'Pedidos',
+            headerShown: true,
+            headerTitleAlign: 'center',
+
+            headerStyle: {
+              backgroundColor: '#fdf2f5',
+            },
+
+            headerTitleStyle: {
+              fontWeight: 'bold',
+              fontSize: 20,
+              color: '#a06a7d',
+            },
+
+            headerShadowVisible: false,
+
+            headerLeft: () => (
+              <TouchableOpacity
+                onPress={() => {
+                  navigation.navigate('Admin');
+                }}
+                style={{
+                  marginLeft: 15,
+                  padding: 5,
+                }}
+              >
+                <Ionicons name="arrow-back" size={27} color="#a06a7d" />
+              </TouchableOpacity>
+            ),
+
+            tabBarIcon: () => <Text>📦</Text>,
+          })}
         />
       )}
 

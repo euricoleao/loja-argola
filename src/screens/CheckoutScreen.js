@@ -6,6 +6,7 @@ import {
   doc,
   getDoc,
   onSnapshot,
+  runTransaction,
   updateDoc,
 } from 'firebase/firestore';
 import { useContext, useEffect, useState } from 'react';
@@ -40,8 +41,12 @@ export default function CheckoutScreen({ navigation, route }) {
   const [codigoPix, setCodigoPix] = useState('');
 
   const formaInicial = route.params?.formaPagamento || 'pix';
-
+  const parcelasSelecionadas = route.params?.parcelas || 1;
+  const parcelasInicial = route.params?.parcelas || 1;
   const [formaPagamento, setFormaPagamento] = useState(formaInicial);
+  const [parcelas, setParcelas] = useState(parcelasInicial);
+  const [creditoAprovado, setCreditoAprovado] = useState(false);
+  const [prazoPagamento, setPrazoPagamento] = useState(null);
   // console.log('FORMA NO CHECKOUT:', formaPagamento);
   const total = carrinho.reduce((soma, item) => {
     return soma + (item.precoVenda || 0) * (item.quantidade || 0);
@@ -74,7 +79,7 @@ export default function CheckoutScreen({ navigation, route }) {
 
     const pedidoRef = doc(db, 'pedidos', pedidoAtual);
 
-    const unsubscribe = onSnapshot(pedidoRef, (snapshot) => {
+    const unsubscribe = onSnapshot(pedidoRef, async (snapshot) => {
       if (!snapshot.exists()) return;
 
       const pedido = snapshot.data();
@@ -82,6 +87,12 @@ export default function CheckoutScreen({ navigation, route }) {
       console.log('STATUS FIRESTORE:', pedido.statusPagamento);
 
       if (pedido.statusPagamento === 'pago') {
+        const estoqueOk = await baixarEstoquePedido(pedidoAtual);
+
+        if (!estoqueOk) {
+          return;
+        }
+
         mostrarToast('Pagamento aprovado ✅');
 
         limparCarrinho();
@@ -106,6 +117,48 @@ export default function CheckoutScreen({ navigation, route }) {
     }
   }, [usuario]);
 
+  function gerarParcelas(valorTotal, quantidadeParcelas) {
+    const diasVencimento = [30, 60, 90, 120];
+
+    const parcelasGeradas = [];
+
+    // Trabalhamos em centavos para evitar problemas de arredondamento
+    const totalCentavos = Math.round(valorTotal * 100);
+
+    const valorBaseCentavos = Math.floor(totalCentavos / quantidadeParcelas);
+
+    let valorAcumuladoCentavos = 0;
+
+    for (let i = 0; i < quantidadeParcelas; i++) {
+      const numero = i + 1;
+
+      let valorCentavos;
+
+      // A última parcela recebe a diferença do arredondamento
+      if (numero === quantidadeParcelas) {
+        valorCentavos = totalCentavos - valorAcumuladoCentavos;
+      } else {
+        valorCentavos = valorBaseCentavos;
+      }
+
+      valorAcumuladoCentavos += valorCentavos;
+
+      // Data de vencimento
+      const vencimento = new Date();
+      vencimento.setDate(vencimento.getDate() + diasVencimento[i]);
+
+      parcelasGeradas.push({
+        numero,
+        valor: valorCentavos / 100,
+        dias: diasVencimento[i],
+        vencimento,
+        status: 'pendente',
+      });
+    }
+
+    return parcelasGeradas;
+  }
+
   async function salvarPedido(status = 'aguardando') {
     try {
       // Atualiza dados do cliente
@@ -120,6 +173,13 @@ export default function CheckoutScreen({ navigation, route }) {
           estado: form.estado,
         });
       }
+
+      // 💳 GERA AS PARCELAS SOMENTE PARA PAGAMENTO A PRAZO
+      const parcelasGeradas =
+        formaPagamento === 'prazo' ? gerarParcelas(total, parcelas) : [];
+
+      console.log('💰 Parcelas geradas:', parcelasGeradas);
+
       // Cria pedido e pega o ID
       const pedidoRef = await addDoc(collection(db, 'pedidos'), {
         cliente: form.nome + ' ' + form.sobrenome,
@@ -163,17 +223,21 @@ export default function CheckoutScreen({ navigation, route }) {
 
         formaPagamento: formaPagamento,
 
-        // aguardando ou pago
+        // 💰 PARCELAS
+        parcelas: parcelasGeradas,
+
+        // aguardando, pago ou aguardando_aprovacao
         statusPagamento: status,
 
         data: new Date(),
       });
 
-      console.log('Pedido criado:', pedidoRef.id);
+      console.log('✅ Pedido criado:', pedidoRef.id);
+      console.log('💳 Parcelas salvas:', parcelasGeradas);
 
       return pedidoRef.id;
     } catch (error) {
-      console.log('Erro salvar pedido:', error);
+      console.log('❌ Erro salvar pedido:', error);
 
       return null;
     }
@@ -187,6 +251,9 @@ export default function CheckoutScreen({ navigation, route }) {
 
       if (snap.exists()) {
         const dados = snap.data();
+
+        setCreditoAprovado(dados.creditoAprovado === true);
+        setPrazoPagamento(dados.prazoPagamento || null);
 
         setForm((prev) => ({
           ...prev,
@@ -206,10 +273,86 @@ export default function CheckoutScreen({ navigation, route }) {
       console.log(e);
     }
   }
+
+  async function baixarEstoquePedido(pedidoId) {
+    try {
+      await runTransaction(db, async (transaction) => {
+        const pedidoRef = doc(db, 'pedidos', pedidoId);
+        const pedidoSnap = await transaction.get(pedidoRef);
+
+        if (!pedidoSnap.exists()) {
+          throw new Error('Pedido não encontrado.');
+        }
+
+        const pedido = pedidoSnap.data();
+
+        // 🛑 Evita baixar o mesmo pedido duas vezes
+        if (pedido.estoqueBaixado === true) {
+          console.log('📦 Estoque deste pedido já foi baixado.');
+          return;
+        }
+
+        // 🔎 Verifica todos os produtos primeiro
+        const produtosAtualizados = [];
+
+        for (const item of pedido.produtos || []) {
+          const produtoRef = doc(db, 'products', item.id);
+          const produtoSnap = await transaction.get(produtoRef);
+
+          if (!produtoSnap.exists()) {
+            throw new Error(`Produto "${item.nome}" não encontrado.`);
+          }
+
+          const produto = produtoSnap.data();
+
+          const estoqueAtual = Number(produto.quantidade) || 0;
+          const quantidadeComprada = Number(item.quantidade) || 0;
+
+          if (estoqueAtual < quantidadeComprada) {
+            throw new Error(
+              `Estoque insuficiente para o produto "${item.nome}".`,
+            );
+          }
+
+          produtosAtualizados.push({
+            ref: produtoRef,
+            novaQuantidade: estoqueAtual - quantidadeComprada,
+          });
+        }
+
+        // 📦 Faz as baixas
+        produtosAtualizados.forEach((item) => {
+          transaction.update(item.ref, {
+            quantidade: item.novaQuantidade,
+          });
+        });
+
+        // 🔒 Marca o pedido como estoque já baixado
+        transaction.update(pedidoRef, {
+          estoqueBaixado: true,
+          estoqueBaixadoEm: new Date(),
+        });
+      });
+
+      console.log('📦 Estoque atualizado com sucesso!');
+      return true;
+    } catch (error) {
+      console.log('❌ Erro ao baixar estoque:', error);
+      mostrarToast(error.message || 'Erro ao atualizar estoque.', 'erro');
+      return false;
+    }
+  }
+
   async function confirmarPagamento(pedidoId) {
     await updateDoc(doc(db, 'pedidos', pedidoId), {
       statusPagamento: 'pago',
     });
+
+    const estoqueOk = await baixarEstoquePedido(pedidoId);
+
+    if (!estoqueOk) {
+      return;
+    }
 
     mostrarToast('Pagamento aprovado ✅');
 
@@ -271,6 +414,66 @@ export default function CheckoutScreen({ navigation, route }) {
           screen: 'Home',
         });
       }, 1500);
+      return;
+    }
+
+    if (formaPagamento === 'prazo') {
+      // Segurança: confirma novamente a autorização
+      if (!creditoAprovado || !prazoPagamento) {
+        mostrarToast('Compra a prazo não autorizada.', 'erro');
+        return;
+      }
+
+      // 🔒 Limite de parcelas pelo prazo autorizado
+      const limiteParcelasPrazo = Math.floor(prazoPagamento / 30);
+
+      // 🔒 Limite de parcelas pelo valor
+      let limiteParcelasValor = 1;
+
+      if (total >= 100 && total <= 200) {
+        limiteParcelasValor = 2;
+      } else if (total > 200) {
+        limiteParcelasValor = 4;
+      }
+
+      // 🔒 Limite final
+      const limiteParcelas = Math.min(
+        limiteParcelasPrazo,
+        limiteParcelasValor,
+        4,
+      );
+
+      if (parcelas < 1 || parcelas > limiteParcelas) {
+        mostrarToast(
+          `Número de parcelas não autorizado. Máximo: ${limiteParcelas}x`,
+          'erro',
+        );
+        return;
+      }
+
+      const pedidoId = await salvarPedido('aguardando_aprovacao');
+
+      if (!pedidoId) {
+        mostrarToast('Erro ao criar pedido.', 'erro');
+        return;
+      }
+
+      await updateDoc(doc(db, 'pedidos', pedidoId), {
+        prazoPagamento: prazoPagamento,
+        statusPagamento: 'aguardando_aprovacao',
+      });
+
+      mostrarToast(`Pedido enviado para aprovação (${parcelas}x).`);
+
+      limparCarrinho();
+
+      setTimeout(() => {
+        navigation.navigate('MainTabs', {
+          screen: 'Home',
+        });
+      }, 2000);
+
+      return;
     }
   }
 
@@ -320,24 +523,6 @@ export default function CheckoutScreen({ navigation, route }) {
     }, 2000);
   }
 
-  //     try {
-  //         const response = await axios.post(
-  //             "https://award-unlawful-throwing.ngrok-free.dev/criar-cartao",
-  //             { total }
-  //         );
-  //         console.log("ROUTE PARAMS:", route.params);
-  //         const link = response.data.link;
-
-  //         if (link) {
-  //             Linking.openURL(link);
-  //         }
-
-  //     } catch (error) {
-  //         console.log(error);
-  //     }
-  // }
-
-  //
   async function copiarPix() {
     await Clipboard.setStringAsync(codigoPix);
     mostrarToast('PIX copiado com sucesso ✅');
