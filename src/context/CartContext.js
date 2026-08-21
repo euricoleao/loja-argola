@@ -1,9 +1,60 @@
-import { createContext, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createContext, useEffect, useState } from 'react';
 
 export const CartContext = createContext();
 
 export function CartProvider({ children }) {
   const [carrinho, setCarrinho] = useState([]);
+  const TEMPO_EXPIRACAO = 2 * 60 * 60 * 1000; // 2 horas
+
+  useEffect(() => {
+    carregarCarrinho();
+  }, []);
+
+  useEffect(() => {
+    salvarCarrinho();
+  }, [carrinho]);
+
+  async function salvarCarrinho() {
+    try {
+      await AsyncStorage.setItem(
+        '@argola_carrinho',
+        JSON.stringify({
+          itens: carrinho,
+          data: Date.now(),
+        }),
+      );
+    } catch (error) {
+      console.log('Erro ao salvar carrinho:', error);
+    }
+  }
+  async function carregarCarrinho() {
+    try {
+      const dados = await AsyncStorage.getItem('@argola_carrinho');
+
+      if (!dados) return;
+
+      const carrinhoSalvo = JSON.parse(dados);
+
+      const agora = Date.now();
+
+      // Verifica se expirou
+      if (agora - carrinhoSalvo.data > TEMPO_EXPIRACAO) {
+        console.log('🗑️ Carrinho expirado.');
+
+        await AsyncStorage.removeItem('@argola_carrinho');
+        return;
+      }
+
+      setCarrinho(carrinhoSalvo.itens);
+
+      console.log(
+        `🛒 Carrinho restaurado (${carrinhoSalvo.itens.length} itens).`,
+      );
+    } catch (error) {
+      console.log('Erro ao carregar carrinho:', error);
+    }
+  }
 
   function adicionarAoCarrinho(produto) {
     setCarrinho((prev) => {
@@ -91,8 +142,10 @@ export function CartProvider({ children }) {
     setCarrinho((prev) => prev.filter((item) => item.id !== id));
   }
 
-  function limparCarrinho() {
+  async function limparCarrinho() {
     setCarrinho([]);
+
+    await AsyncStorage.removeItem('@argola_carrinho');
   }
 
   return (

@@ -69,7 +69,9 @@ export default function LoginScreen({ navigation }) {
 
       mostrarToast('Bem-vindo!');
 
-      navigation.replace('Home');
+      navigation.navigate('MainTabs', {
+        screen: 'Home',
+      });
     } catch {
       mostrarToast('Email ou senha inválidos', 'erro');
     }

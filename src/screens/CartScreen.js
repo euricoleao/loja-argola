@@ -498,8 +498,8 @@ const styles = StyleSheet.create({
   },
   btnRemover: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: 14,
+    right: 12,
     backgroundColor: '#ffe6eb',
     padding: 6,
     borderRadius: 20,
@@ -513,17 +513,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 10,
   },
-  // btnPagamento: {
-  //   flex: 1,
-  //   minWidth: 85,
-  //   paddingVertical: 11,
-  //   paddingHorizontal: 8,
-  //   backgroundColor: '#f8e1e7',
-  //   borderRadius: 10,
-  //   marginRight: 5,
-  //   alignItems: 'center',
-  //   justifyContent: 'center',
-  // },
+
   btnPagamento: {
     width: '48%',
     minHeight: 52,

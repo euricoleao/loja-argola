@@ -21,13 +21,20 @@
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "versionCode": 2
     },
     "web": {
       "output": "static"
     },
     "plugins": [
       "expo-font"
-    ]
+    ],
+    "owner": "euricocarvalhos-team",
+    "extra": {
+      "eas": {
+        "projectId": "d770f582-3e61-494c-8589-d3831018355c"
+      }
+    }
   }
 }

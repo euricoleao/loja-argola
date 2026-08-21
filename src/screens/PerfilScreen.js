@@ -10,10 +10,12 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore';
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import {
   Image,
   Linking,
+  Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -34,6 +36,18 @@ export default function PerfilScreen({ navigation }) {
   const [totalCompras, setTotalCompras] = useState(0);
   const [imagem, setImagem] = useState(null);
   const [naoLidas, setNaoLidas] = useState(0);
+  const [zoomVisivel, setZoomVisivel] = useState(false);
+  const ultimoToque = useRef(0);
+
+  const handleDoubleTap = () => {
+    const agora = Date.now();
+
+    if (agora - ultimoToque.current < 300) {
+      setZoomVisivel(true);
+    }
+
+    ultimoToque.current = agora;
+  };
 
   useEffect(() => {
     if (!usuario?.uid) return;
@@ -216,8 +230,8 @@ export default function PerfilScreen({ navigation }) {
 
       <View style={styles.header}>
         <View style={styles.avatarContainer}>
-          {/* escolher fotos */}
-          <TouchableOpacity onPress={escolherFoto} style={styles.avatar}>
+          {/* Foto do perfil - 2 toques para ampliar */}
+          <Pressable onPress={handleDoubleTap} style={styles.avatar}>
             {usuario?.fotoUrl ? (
               <Image
                 source={{ uri: usuario.fotoUrl }}
@@ -226,7 +240,7 @@ export default function PerfilScreen({ navigation }) {
             ) : (
               <Text style={styles.avatarTexto}>{usuario?.nome?.charAt(0)}</Text>
             )}
-          </TouchableOpacity>
+          </Pressable>
 
           {/* Editar foto */}
           <TouchableOpacity style={styles.botaoEditar} onPress={escolherFoto}>
@@ -348,6 +362,21 @@ export default function PerfilScreen({ navigation }) {
           <Text style={styles.sairTexto}>🚪 Sair da Conta</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <Modal visible={zoomVisivel} transparent animationType="fade">
+        <Pressable
+          style={styles.modalZoom}
+          onPress={() => setZoomVisivel(false)}
+        >
+          <Image
+            source={{ uri: usuario?.fotoUrl }}
+            style={styles.fotoZoom}
+            resizeMode="contain"
+          />
+
+          <Text style={styles.textoFechar}>Toque para fechar</Text>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -521,5 +550,24 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  modalZoom: {
+    flex: 1,
+    backgroundColor: 'rgba(196,139,159,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  fotoZoom: {
+    width: '80%',
+    height: '50%',
+    borderRadius: 25, // 👈 Arredonda as pontas
+  },
+
+  textoFechar: {
+    color: '#FFF',
+    marginTop: -50,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

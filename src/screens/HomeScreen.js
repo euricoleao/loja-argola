@@ -118,18 +118,6 @@ export default function HomeScreen({ navigation, setQuantidadeCarrinho }) {
     });
   }
 
-  // async function baixarEstoque(produto) {
-  //   try {
-  //     const novaQtd = (produto.quantidade || 0) - 1;
-
-  //     await updateDoc(doc(db, 'products', produto.id), {
-  //       quantidade: novaQtd,
-  //     });
-  //   } catch (error) {
-  //     console.error(error);
-  //   }
-  // }
-
   const produtosFiltrados = produtos.filter((item) =>
     item.nome.toLowerCase().includes(busca.toLowerCase()),
   );
@@ -362,14 +350,10 @@ const styles = StyleSheet.create({
   },
 
   nome: {
-    fontSize: 14,
-    marginTop: 5,
-  },
-
-  preco: {
-    fontWeight: 'bold',
-    color: '#161515', // estilo loja
     fontSize: 16,
+    marginTop: 5,
+    marginLeft: 5,
+    color: '#a78834',
   },
 
   favorito: {
@@ -445,7 +429,7 @@ const styles = StyleSheet.create({
   },
   toast: {
     position: 'absolute',
-    top: 50,
+    top: 12,
     left: 20,
     right: 20,
     backgroundColor: '#c48b9f',
@@ -459,7 +443,7 @@ const styles = StyleSheet.create({
   toastText: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: 14,
+    fontSize: 16,
   },
   semEstoque: {
     position: 'absolute',
@@ -475,5 +459,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 10,
     fontWeight: 'bold',
+  },
+  precoVenda: {
+    fontWeight: 'bold',
+    color: '#9b9696', // estilo loja
+    fontSize: 16,
+    marginLeft: 5,
   },
 });

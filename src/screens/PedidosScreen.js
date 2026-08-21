@@ -1,6 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -474,6 +476,33 @@ export default function PedidosScreen({ navigation }) {
     }
   }
 
+  async function excluirPedido(pedidoId) {
+    Alert.alert(
+      'Excluir pedido',
+      'Deseja remover este pedido do seu histórico?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(db, 'pedidos', pedidoId));
+
+              Alert.alert('Sucesso', 'Pedido removido com sucesso 🗑️');
+
+              console.log('🗑️ Pedido excluído:', pedidoId);
+              console.log('🗑️ Pedido excluído:', pedidoId);
+            } catch (error) {
+              console.log('❌ Erro ao excluir pedido:', error);
+              Alert.alert('Erro', 'Não foi possível excluir o pedido.');
+            }
+          },
+        },
+      ],
+    );
+  }
+
   return (
     <View style={styles.container}>
       <FlatList
@@ -529,6 +558,33 @@ export default function PedidosScreen({ navigation }) {
               })
             }
           >
+            <View style={styles.acoesPedido}>
+              <TouchableOpacity
+                style={styles.botaoDetalhes}
+                onPress={() =>
+                  navigation.navigate('PedidoDetalhe', {
+                    pedido: item,
+                  })
+                }
+              >
+                <Ionicons name="eye-outline" size={18} color="#fff" />
+                <Text style={styles.textoDetalhes}>Ver detalhes</Text>
+              </TouchableOpacity>
+
+              {(item.statusPagamento === 'aprovado' ||
+                item.statusPagamento === 'recusado' ||
+                item.statusPagamento === 'pago' ||
+                item.statusPagamento === 'entregue') && (
+                <TouchableOpacity
+                  style={styles.botaoExcluir}
+                  onPress={() => excluirPedido(item.id)}
+                >
+                  <Ionicons name="trash-outline" size={18} color="#fff" />
+                  <Text style={styles.textoExcluir}>Apagar pedido</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
             {item.produtos?.map((produto, index) => (
               <View key={index}>
                 <Text style={styles.itemNome}>{produto.nome}</Text>
@@ -900,5 +956,43 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#a06a7d',
+  },
+
+  textoExcluir: {
+    color: '#fff',
+    fontWeight: 'bold',
+    marginLeft: 6,
+  },
+  acoesPedido: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 12,
+  },
+
+  botaoDetalhes: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#B8860B',
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+
+  textoDetalhes: {
+    color: '#fff',
+    fontWeight: 'bold',
+    marginLeft: 6,
+  },
+
+  botaoExcluir: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#C48B9F',
+    paddingVertical: 10,
+    borderRadius: 8,
   },
 });

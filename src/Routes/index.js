@@ -10,6 +10,7 @@ import Home from '../screens/HomeScreen';
 import ProductDetailScreen from '../screens/ProductDetailScreen';
 
 import { Ionicons } from '@expo/vector-icons';
+import { ToastProvider, useToast } from '../context/ToastContext';
 import AlterarSenhaScreen from '../screens/AlterarSenhaScreen';
 import Carrinho from '../screens/CartScreen';
 import CheckoutScreen from '../screens/CheckoutScreen';
@@ -46,6 +47,8 @@ const Stack = createNativeStackNavigator();
 function HomeStack({ setQuantidadeCarrinho }) {
   const { logout } = useContext(AuthContext);
 
+  const { mostrarToast } = useToast();
+
   const { usuario } = useContext(AuthContext);
   const isAdmin = usuario?.tipo === 'admin';
 
@@ -65,7 +68,12 @@ function HomeStack({ setQuantidadeCarrinho }) {
             <TouchableOpacity
               onPress={() => {
                 console.log('clicou');
-                alert('clicou!');
+
+                mostrarToast(
+                  'Clique em Perfil e role a barra para baixo e clique em Sair da conta!',
+                  'success',
+                  9000,
+                );
               }}
               style={{
                 marginRight: 0,
@@ -562,10 +570,12 @@ function Tabs() {
 // 🔥 ROUTES PRINCIPAL
 export default function Routes() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="MainTabs" component={Tabs} />
+    <ToastProvider>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="MainTabs" component={Tabs} />
 
-      <Stack.Screen name="Checkout" component={CheckoutScreen} />
-    </Stack.Navigator>
+        <Stack.Screen name="Checkout" component={CheckoutScreen} />
+      </Stack.Navigator>
+    </ToastProvider>
   );
 }
