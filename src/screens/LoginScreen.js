@@ -22,8 +22,8 @@ import {
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
-
 import { AuthContext } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { auth, db } from '../firebase/config';
 
 export default function LoginScreen({ navigation }) {
@@ -40,12 +40,13 @@ export default function LoginScreen({ navigation }) {
   const [contato, setContato] = useState('');
 
   const [mostrarSenha, setMostrarSenha] = useState(false);
+  const { mostrarToast } = useToast();
 
-  const [toast, setToast] = useState({
-    visible: false,
-    message: '',
-    tipo: 'sucesso',
-  });
+  // const [toast, setToast] = useState({
+  //   visible: false,
+  //   message: '',
+  //   tipo: 'sucesso',
+  // });
 
   async function recuperarSenha() {
     if (!email) {
@@ -127,25 +128,25 @@ export default function LoginScreen({ navigation }) {
       mostrarToast('Erro ao cadastrar', 'erro');
     }
   }
-  function mostrarToast(msg, tipo = 'sucesso') {
-    setToast({
-      visible: true,
+  // function mostrarToast(msg, tipo = 'sucesso') {
+  //   setToast({
+  //     visible: true,
 
-      message: msg,
+  //     message: msg,
 
-      tipo,
-    });
+  //     tipo,
+  //   });
 
-    setTimeout(() => {
-      setToast({
-        visible: false,
+  //   setTimeout(() => {
+  //     setToast({
+  //       visible: false,
 
-        message: '',
+  //       message: '',
 
-        tipo: 'sucesso',
-      });
-    }, 2500);
-  }
+  //       tipo: 'sucesso',
+  //     });
+  //   }, 2500);
+  // }
 
   return (
     <KeyboardAvoidingView
@@ -163,7 +164,7 @@ export default function LoginScreen({ navigation }) {
             resizeMode="cover"
           >
             <View style={styles.overlay}>
-              {toast.visible && (
+              {/* {toast.visible && (
                 <View
                   style={[
                     styles.toast,
@@ -175,7 +176,7 @@ export default function LoginScreen({ navigation }) {
                     {toast.message}
                   </Text>
                 </View>
-              )}
+              )} */}
 
               <Text style={styles.logo}>💎</Text>
 

@@ -5,6 +5,7 @@ export const CartContext = createContext();
 
 export function CartProvider({ children }) {
   const [carrinho, setCarrinho] = useState([]);
+
   const TEMPO_EXPIRACAO = 2 * 60 * 60 * 1000; // 2 horas
 
   useEffect(() => {

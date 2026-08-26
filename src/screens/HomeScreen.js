@@ -86,6 +86,13 @@ export default function HomeScreen({ navigation, setQuantidadeCarrinho }) {
   }
 
   async function toggleFavorito(item) {
+    if (!usuario) {
+      mostrarToast('Faça login para adicionar aos favoritos ❤️', 'erro');
+      return;
+    }
+
+    const uid = usuario.uid;
+
     const jaExiste = favoritos.includes(item.id);
 
     // ID único para o favorito do usuário
@@ -198,119 +205,147 @@ export default function HomeScreen({ navigation, setQuantidadeCarrinho }) {
             // 👈 AQUI
             paddingBottom: 20,
           }}
-          renderItem={({ item }) => (
-            console.log(item.imagens),
-            (
-              <Animated.View entering={FadeInDown.duration(400)}>
-                <TouchableOpacity
-                  style={[
-                    styles.card,
-                    (item.quantidade || 0) <= 0 && { opacity: 0.6 },
-                  ]}
-                  disabled={(item.quantidade || 0) <= 0}
-                  onPress={() =>
-                    navigation.navigate('Produto', { produto: item })
-                  }
-                >
-                  {/* 👇 LINHA COM NOME + FAVORITO */}
-                  <View style={{ position: 'relative' }}>
-                    {item.imagens?.[0] ? (
-                      <Image
-                        source={{ uri: item.imagens?.[0] }}
-                        style={[
-                          styles.imagem,
-                          (item.quantidade || 0) <= 0 && { opacity: 0.4 },
-                        ]}
-                      />
-                    ) : (
-                      <Text>Sem imagem</Text>
-                    )}
+          renderItem={({ item }) => {
+            const desconto =
+              Number(item.precoPromo) > 0
+                ? Math.round(
+                    ((Number(item.precoVenda) - Number(item.precoPromo)) /
+                      Number(item.precoVenda)) *
+                      100,
+                  )
+                : 0;
 
-                    {/* 🔥 SEM ESTOQUE */}
-                    {(item.quantidade || 0) <= 0 && (
-                      <View style={styles.semEstoque}>
-                        <Text style={styles.textoSemEstoque}>SEM ESTOQUE</Text>
+            return (
+              console.log(item.imagens),
+              (
+                <Animated.View entering={FadeInDown.duration(400)}>
+                  <TouchableOpacity
+                    style={[
+                      styles.card,
+                      (item.quantidade || 0) <= 0 && { opacity: 0.6 },
+                    ]}
+                    disabled={(item.quantidade || 0) <= 0}
+                    onPress={() =>
+                      navigation.navigate('Produto', { produto: item })
+                    }
+                  >
+                    {/* 👇 LINHA COM NOME + FAVORITO */}
+                    <View style={{ position: 'relative' }}>
+                      {item.imagens?.[0] ? (
+                        <Image
+                          source={{ uri: item.imagens?.[0] }}
+                          style={[
+                            styles.imagem,
+                            (item.quantidade || 0) <= 0 && { opacity: 0.4 },
+                          ]}
+                        />
+                      ) : (
+                        <Text>Sem imagem</Text>
+                      )}
+
+                      {/* 🏷️ TARJA DE OFERTA */}
+                      {Number(item.precoPromo) > 0 && (
+                        <View style={styles.tarjaOferta}>
+                          <Text style={styles.textoOferta}>OFERTA</Text>
+                        </View>
+                      )}
+
+                      {/* 🔥 SEM ESTOQUE */}
+                      {(item.quantidade || 0) <= 0 && (
+                        <View style={styles.semEstoque}>
+                          <Text style={styles.textoSemEstoque}>
+                            SEM ESTOQUE
+                          </Text>
+                        </View>
+                      )}
+
+                      {/* ❤️ FAVORITO SOBRE A IMAGEM */}
+                      <TouchableOpacity
+                        style={styles.favorito}
+                        onPress={() => toggleFavorito(item)}
+                      >
+                        <Text style={{ fontSize: 18 }}>
+                          {favoritos.includes(item.id) ? '❤️' : '🤍'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <Text style={styles.nome}>{item.nome}</Text>
+                    {Number(item.precoPromo) > 0 ? (
+                      <>
+                        <View style={{ position: 'relative' }}>
+                          <Text style={styles.precoAntigo}>
+                            {formatarPreco(item.precoVenda)}
+                          </Text>
+
+                          <Text style={styles.precoPromo}>
+                            {formatarPreco(Number(item.precoPromo))}
+                          </Text>
+
+                          <Text style={styles.qtd}>
+                            Qt: {item.quantidade || 0}
+                          </Text>
+                        </View>
+                      </>
+                    ) : (
+                      <View style={{ position: 'relative' }}>
+                        <Text style={styles.precoVenda}>
+                          {formatarPreco(item.precoVenda)}
+                        </Text>
+
+                        <Text style={styles.qtd}>
+                          Qt: {item.quantidade || 0}
+                        </Text>
+                        {isAdmin && <Text>Cód: {item.codigo}</Text>}
                       </View>
                     )}
 
-                    {/* ❤️ FAVORITO SOBRE A IMAGEM */}
+                    {/* Botão Comprar */}
                     <TouchableOpacity
-                      style={styles.favorito}
-                      onPress={() => toggleFavorito(item)}
+                      activeOpacity={0.7}
+                      style={[
+                        styles.botaoComprar,
+                        {
+                          backgroundColor:
+                            (item.quantidade || 0) <= 0 ? '#ccc' : '#e7a299',
+                        },
+                      ]}
+                      disabled={(item.quantidade || 0) <= 0}
+                      onPress={(e) => {
+                        e.stopPropagation(); // evita abrir o produto
+
+                        if ((item.quantidade || 0) <= 0) {
+                          mostrarToast('Sem estoque ❌', 'erro');
+                          return;
+                        }
+
+                        adicionarAoCarrinho(item);
+                        // baixarEstoque(item);
+
+                        mostrarToast(`${item.nome} adicionado 🛍️`);
+
+                        if (produtos.length === 0) {
+                          return <Text>Carregando produtos...</Text>;
+                        }
+                      }}
                     >
-                      <Text style={{ fontSize: 18 }}>
-                        {favoritos.includes(item.id) ? '❤️' : '🤍'}
-                      </Text>
+                      <Text style={styles.textoBotao}>COMPRAR</Text>
                     </TouchableOpacity>
-                  </View>
 
-                  <Text style={styles.nome}>{item.nome}</Text>
-                  {item.precoPromo ? (
-                    <>
-                      <Text style={styles.precoAntigo}>
-                        {formatarPreco(item.precoVenda)}
-                      </Text>
-
-                      <Text style={styles.precoPromo}>
-                        {formatarPreco(item.precoPromo)}
-                      </Text>
-                    </>
-                  ) : (
-                    <View style={{ position: 'relative' }}>
-                      <Text style={styles.precoVenda}>
-                        {formatarPreco(item.precoVenda)}
-                      </Text>
-
-                      <Text style={styles.qtd}>Qt: {item.quantidade || 0}</Text>
-                      {isAdmin && <Text>Cód: {item.codigo}</Text>}
-                    </View>
-                  )}
-
-                  {/* Botão Comprar */}
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    style={[
-                      styles.botaoComprar,
-                      {
-                        backgroundColor:
-                          (item.quantidade || 0) <= 0 ? '#ccc' : '#e7a299',
-                      },
-                    ]}
-                    disabled={(item.quantidade || 0) <= 0}
-                    onPress={(e) => {
-                      e.stopPropagation(); // evita abrir o produto
-
-                      if ((item.quantidade || 0) <= 0) {
-                        mostrarToast('Sem estoque ❌', 'erro');
-                        return;
-                      }
-
-                      adicionarAoCarrinho(item);
-                      // baixarEstoque(item);
-
-                      mostrarToast(`${item.nome} adicionado 🛍️`);
-
-                      if (produtos.length === 0) {
-                        return <Text>Carregando produtos...</Text>;
-                      }
-                    }}
-                  >
-                    <Text style={styles.textoBotao}>COMPRAR</Text>
+                    {isAdmin && (
+                      <Button
+                        title="Excluir"
+                        color="red"
+                        onPress={() => excluirProduto(item.id)}
+                      />
+                    )}
                   </TouchableOpacity>
 
-                  {isAdmin && (
-                    <Button
-                      title="Excluir"
-                      color="red"
-                      onPress={() => excluirProduto(item.id)}
-                    />
-                  )}
-                </TouchableOpacity>
-
-                {/* Botao add estoque */}
-              </Animated.View>
-            )
-          )}
+                  {/* Botao add estoque */}
+                </Animated.View>
+              )
+            );
+          }}
         />
       </View>
     </LinearGradient>
@@ -378,12 +413,14 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
     color: '#999',
     fontSize: 12,
+    marginLeft: 5,
   },
 
   precoPromo: {
     color: '#e60023',
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 18,
+    marginLeft: 5,
   },
   botaoComprar: {
     backgroundColor: '#e7a299', // dourado
@@ -465,5 +502,24 @@ const styles = StyleSheet.create({
     color: '#9b9696', // estilo loja
     fontSize: 16,
     marginLeft: 5,
+  },
+  tarjaOferta: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    backgroundColor: '#e60023',
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderTopRightRadius: 8,
+    borderBottomRightRadius: 8,
+    zIndex: 20,
+    elevation: 5,
+  },
+
+  textoOferta: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: 'bold',
+    letterSpacing: 1,
   },
 });

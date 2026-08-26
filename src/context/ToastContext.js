@@ -25,13 +25,23 @@ export function ToastProvider({ children }) {
     }, 2500);
   };
 
+  const icones = {
+    success: '✅',
+    error: '❌',
+    warning: '⚠️',
+    info: 'ℹ️',
+    loja: '💎',
+  };
+
   return (
     <ToastContext.Provider value={{ mostrarToast }}>
       {children}
 
       {toast.visible && (
-        <View style={[styles.toast, tipoStyle(toast.tipo)]}>
-          <Text style={styles.texto}>{toast.message}</Text>
+        <View style={[styles.toast, styles[toast.tipo]]}>
+          <Text style={styles.texto}>
+            {icones[toast.tipo]} {toast.message}
+          </Text>
         </View>
       )}
     </ToastContext.Provider>
@@ -48,31 +58,23 @@ export function useToast() {
   return context;
 }
 
-function tipoStyle(tipo) {
-  if (tipo === 'error') {
-    return styles.error;
-  }
-
-  return styles.success;
-}
-
 const styles = StyleSheet.create({
   toast: {
     position: 'absolute',
-    bottom: 90,
-    alignSelf: 'center',
-    width: '90%',
+
+    // 📍 MESMA POSIÇÃO EM TODAS AS TELAS
+    top: 55,
+    left: 20,
+    right: 20,
+
     paddingVertical: 14,
     paddingHorizontal: 18,
-    borderRadius: 12,
 
-    elevation: 8,
+    borderRadius: 14,
 
+    elevation: 12,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
     shadowRadius: 5,
 
@@ -80,17 +82,29 @@ const styles = StyleSheet.create({
   },
 
   success: {
-    backgroundColor: '#B8860B',
+    backgroundColor: '#2E7D32', // Verde
   },
 
   error: {
-    backgroundColor: '#8B5E3C',
+    backgroundColor: '#D32F2F', // Vermelho
+  },
+
+  warning: {
+    backgroundColor: '#F57C00', // Laranja
+  },
+
+  info: {
+    backgroundColor: '#1976D2', // Azul
+  },
+
+  loja: {
+    backgroundColor: '#C48B9F', // Rosa da Loja Joias
   },
 
   texto: {
-    color: '#fff',
+    color: '#FFF',
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
     textAlign: 'center',
   },
 });

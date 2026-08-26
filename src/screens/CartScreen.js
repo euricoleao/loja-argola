@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import { CartContext } from '../context/CartContext';
+import { useToast } from '../context/ToastContext';
 import { db } from '../firebase/config';
 import { formatarPreco } from '../utils/formatarPreco';
 
@@ -30,11 +31,12 @@ export default function CartScreen() {
   const [formaPagamento, setFormaPagamento] = useState('pix');
   const [parcelas, setParcelas] = useState(1);
   const navigation = useNavigation();
+  const { mostrarToast } = useToast();
 
-  const [toast, setToast] = useState({
-    visible: false,
-    message: '',
-  });
+  // const [toast, setToast] = useState({
+  //   visible: false,
+  //   message: '',
+  // });
 
   const {
     carrinho,
@@ -67,13 +69,13 @@ export default function CartScreen() {
   const limiteParcelas = Math.min(limiteParcelasValor, limiteParcelasPrazo, 4);
 
   //TOAST
-  function mostrarToast(msg) {
-    setToast({ visible: true, message: msg });
+  // function mostrarToast(msg) {
+  //   setToast({ visible: true, message: msg });
 
-    setTimeout(() => {
-      setToast({ visible: false, message: '' });
-    }, 2000);
-  }
+  //   setTimeout(() => {
+  //     setToast({ visible: false, message: '' });
+  //   }, 2000);
+  // }
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -141,7 +143,7 @@ export default function CartScreen() {
         colors={['#fdf2f5', '#f8d7e1', '#d4c4c8']}
         style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
       >
-        {toast.visible && (
+        {/* {toast.visible && (
           <View
             style={[styles.toast, toast.tipo === 'erro' && styles.toastErro]}
           >
@@ -150,7 +152,7 @@ export default function CartScreen() {
               {toast.message}
             </Text>
           </View>
-        )}
+        )} */}
         <Text style={styles.iconeVazio}>🛍️</Text>
 
         <Text style={styles.tituloVazio}>Seu carrinho está vazio</Text>
@@ -359,13 +361,28 @@ export default function CartScreen() {
         </View>
 
         {/* BOTÃO DE FINALIZAR PEDIDO */}
+        {/* BOTÃO DE FINALIZAR PEDIDO */}
         <TouchableOpacity
           style={styles.botao}
           onPress={() => {
+            // 🔒 Verifica se o cliente está logado
+            if (!usuario?.uid) {
+              mostrarToast('Por favor, faça login para continuar 🔐');
+
+              // Aguarda 2 segundos e leva para a tela de login
+              setTimeout(() => {
+                navigation.navigate('Login');
+              }, 2000);
+
+              return;
+            }
+
+            // ✅ Cliente logado, segue para o checkout
             navigation.navigate('Checkout', {
               formaPagamento,
               parcelas,
             });
+
             console.log('ENVIANDO:', formaPagamento);
           }}
         >

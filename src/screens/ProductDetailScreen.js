@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { CartContext } from '../context/CartContext';
+import { useToast } from '../context/ToastContext';
 import { formatarPreco } from '../utils/formatarPreco';
 
 export default function ProductDetailScreen({ route }) {
@@ -17,6 +18,7 @@ export default function ProductDetailScreen({ route }) {
   const { produto } = route.params;
   const largura = Dimensions.get('window').width;
   const [indexAtual, setIndexAtual] = useState(0);
+  const { mostrarToast } = useToast();
 
   return (
     <LinearGradient
@@ -91,7 +93,7 @@ export default function ProductDetailScreen({ route }) {
           title="Adicionar ao Carrinho"
           onPress={() => {
             adicionarAoCarrinho(produto);
-            alert('Produto adicionado ao carrinho!');
+            mostrarToast(`${produto.nome} adicionado 🛍️`);
           }}
         >
           <Text style={styles.textoBotao}>Adicionar ao Carrinho</Text>
@@ -147,5 +149,23 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 14,
+  },
+  mostrarToast: {
+    position: 'absolute',
+    top: 12,
+    left: 20,
+    right: 20,
+    backgroundColor: '#c48b9f',
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    zIndex: 999,
+    elevation: 10,
+  },
+
+  toastText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });

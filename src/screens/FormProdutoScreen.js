@@ -91,10 +91,10 @@ export default function FormProdutoScreen() {
 
   async function cadastrarProduto() {
     try {
-      const compra = Number(precoCompra) || 0;
-      const venda = Number(precoVenda) || 0;
+      const compra = Number(precoCompra.replace(',', '.')) || 0;
+      const venda = Number(precoVenda.replace(',', '.')) || 0;
+      const promo = Number(precoPromo.replace(',', '.')) || 0;
       const qtd = Number(quantidade) || 0;
-
       const lucro = venda - compra;
       const custoTotal = qtd * compra;
       const lucroTotal = qtd * lucro;
@@ -111,6 +111,7 @@ export default function FormProdutoScreen() {
         codigo,
         precoCompra: compra,
         precoVenda: venda,
+        precoPromo: promo,
         lucro,
         custoTotal,
         lucroTotal,
