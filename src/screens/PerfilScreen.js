@@ -339,7 +339,6 @@ export default function PerfilScreen({ navigation }) {
         </TouchableOpacity>
 
         {/* Falar com a loja */}
-        {/* Falar com a loja */}
         <TouchableOpacity style={styles.item} onPress={falarComALoja}>
           <Text style={styles.texto}>💬 Falar com a Loja</Text>
           <Text>›</Text>

@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
   },
 
   success: {
-    backgroundColor: '#2E7D32', // Verde
+    backgroundColor: '#C98F9B', //
   },
 
   error: {

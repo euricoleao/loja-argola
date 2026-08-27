@@ -1,4 +1,10 @@
-import { collection, getDocs } from 'firebase/firestore';
+import {
+  collection,
+  getDocs,
+  onSnapshot,
+  query,
+  where,
+} from 'firebase/firestore';
 import { useContext, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -9,13 +15,24 @@ import {
   View,
 } from 'react-native';
 
+import * as Notifications from 'expo-notifications';
 import { AuthContext } from '../context/AuthContext';
 import { db } from '../firebase/config';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 export default function AdminScreen({ navigation }) {
   const { usuario } = useContext(AuthContext);
 
   const [carregando, setCarregando] = useState(true);
+  const [pedidosAguardando, setPedidosAguardando] = useState([]);
 
   const [resumo, setResumo] = useState({
     vendasHoje: 0,
@@ -30,6 +47,53 @@ export default function AdminScreen({ navigation }) {
     if (isAdmin) {
       carregarResumo();
     }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    let primeiraLeitura = true;
+
+    const q = query(
+      collection(db, 'pedidos'),
+      where('formaPagamento', '==', 'prazo'),
+      where('statusPagamento', '==', 'aguardando_aprovacao'),
+    );
+
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const lista = snapshot.docs.map((docItem) => ({
+        id: docItem.id,
+        ...docItem.data(),
+      }));
+
+      setPedidosAguardando(lista);
+
+      // Evita tocar som assim que o administrador abre a tela
+      if (primeiraLeitura) {
+        primeiraLeitura = false;
+        return;
+      }
+
+      if (snapshot.docChanges().some((change) => change.type === 'added')) {
+        try {
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: '🔔 Nova compra a prazo!',
+              body: 'Existe uma nova compra aguardando aprovação.',
+              sound: 'default',
+              data: {
+                tela: 'Pedidos',
+              },
+            },
+            trigger: null,
+          });
+        } catch (error) {
+          console.log('Erro ao emitir notificação:', error);
+        }
+      }
+    });
+
+    return () => unsubscribe();
   }, [isAdmin]);
 
   async function carregarResumo() {
@@ -157,6 +221,35 @@ export default function AdminScreen({ navigation }) {
       ============================== */}
 
       <Text style={styles.tituloSecao}>📊 Resumo de hoje</Text>
+
+      {pedidosAguardando.length > 0 && (
+        <TouchableOpacity
+          style={styles.alertaPrazo}
+          onPress={() => navigation.navigate('Pedidos')}
+        >
+          <View style={styles.alertaIcone}>
+            <Text style={styles.alertaIconeTexto}>🔔</Text>
+          </View>
+
+          <View style={styles.alertaConteudo}>
+            <Text style={styles.alertaTitulo}>Nova compra a prazo!</Text>
+
+            <Text style={styles.alertaTexto}>
+              {pedidosAguardando.length === 1
+                ? 'Existe 1 pedido aguardando aprovação.'
+                : `Existem ${pedidosAguardando.length} pedidos aguardando aprovação.`}
+            </Text>
+
+            <Text style={styles.alertaToque}>Toque aqui para verificar →</Text>
+          </View>
+
+          <View style={styles.badgePedidos}>
+            <Text style={styles.badgePedidosTexto}>
+              {pedidosAguardando.length > 99 ? '99+' : pedidosAguardando.length}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      )}
 
       {carregando ? (
         <View style={styles.carregando}>
@@ -501,5 +594,76 @@ const styles = StyleSheet.create({
   semAcessoTexto: {
     fontSize: 16,
     color: '#777',
+  },
+  alertaPrazo: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 15,
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#C48B9F',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+  },
+
+  alertaIcone: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#fdf2f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+
+  alertaIconeTexto: {
+    fontSize: 26,
+  },
+
+  alertaConteudo: {
+    flex: 1,
+  },
+
+  alertaTitulo: {
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: '#a06a7d',
+  },
+
+  alertaTexto: {
+    marginTop: 4,
+    fontSize: 13,
+    color: '#555',
+  },
+
+  alertaToque: {
+    marginTop: 6,
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#C48B9F',
+  },
+
+  badgePedidos: {
+    minWidth: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#C48B9F',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+
+  badgePedidosTexto: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
 });

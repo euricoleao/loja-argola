@@ -463,6 +463,23 @@ export default function CheckoutScreen({ navigation, route }) {
         statusPagamento: 'aguardando_aprovacao',
       });
 
+      // =====================================================
+      // 🔔 AVISA O ADMINISTRADOR
+      // =====================================================
+
+      await addDoc(collection(db, 'notificacoes_admin'), {
+        tipo: 'nova_compra_prazo',
+        titulo: '🔔 Nova compra a prazo',
+        mensagem: `Nova compra a prazo aguardando aprovação (${parcelas}x).`,
+        pedidoId: pedidoId,
+        cliente: form.nome,
+        valor: total,
+        parcelas: parcelas,
+        prazoPagamento: prazoPagamento,
+        lida: false,
+        criadoEm: new Date(),
+      });
+
       mostrarToast(`Pedido enviado para aprovação (${parcelas}x).`);
 
       limparCarrinho();

@@ -1,7 +1,19 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
-export default function PedidoDetalhe({ route }) {
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+
+export default function PedidoDetalhe({ route, navigation }) {
   const { pedido } = route.params;
+
+  // =========================================================
+  // FORMATA PREÇO
+  // =========================================================
 
   function formatarPreco(valor) {
     return Number(valor || 0).toLocaleString('pt-BR', {
@@ -9,6 +21,10 @@ export default function PedidoDetalhe({ route }) {
       currency: 'BRL',
     });
   }
+
+  // =========================================================
+  // FORMATA DATA
+  // =========================================================
 
   function formatarData(data) {
     if (!data) return '';
@@ -18,6 +34,10 @@ export default function PedidoDetalhe({ route }) {
     return dataCompra.toLocaleDateString('pt-BR');
   }
 
+  // =========================================================
+  // STATUS
+  // =========================================================
+
   function nomeStatus(status) {
     switch (status) {
       case 'pago':
@@ -26,8 +46,17 @@ export default function PedidoDetalhe({ route }) {
       case 'aguardando':
         return 'Aguardando pagamento';
 
+      case 'aguardando_aprovacao':
+        return 'Aguardando aprovação';
+
+      case 'aprovado':
+        return 'Pedido aprovado';
+
       case 'pendente':
         return 'Pedido pendente';
+
+      case 'recusado':
+        return 'Pedido recusado';
 
       case 'entregue':
         return 'Pedido entregue';
@@ -37,59 +66,146 @@ export default function PedidoDetalhe({ route }) {
     }
   }
 
+  // =========================================================
+  // COR DO STATUS
+  // =========================================================
+
   function corStatus(status) {
     switch (status) {
       case 'pago':
         return '#2e7d32';
 
+      case 'aprovado':
+        return '#2e7d32';
+
       case 'aguardando':
+        return '#f9a825';
+
+      case 'aguardando_aprovacao':
         return '#f9a825';
 
       case 'entregue':
         return '#1565c0';
+
+      case 'recusado':
+        return '#c62828';
 
       default:
         return '#ef6c00';
     }
   }
 
+  // =========================================================
+  // ABRIR CERTIFICADO
+  // =========================================================
+
+  function abrirCertificado(produto) {
+    navigation.navigate('CertificadoGarantia', {
+      nomeCliente: pedido.cliente || 'Cliente',
+
+      nomeProduto: produto.nome || 'Produto',
+
+      codigoProduto: produto.codigo || produto.codigoProduto || 'Não informado',
+
+      numeroPedido: pedido.id,
+
+      dataCompra: pedido.data,
+
+      // Enviamos também o produto inteiro
+      // caso precisemos de outros dados futuramente.
+      produto: produto,
+
+      pedido: pedido,
+    });
+  }
+
   return (
     <ScrollView style={styles.container}>
-      {/* CABEÇALHO */}
+      {/* =====================================================
+          CABEÇALHO
+      ====================================================== */}
+
       <View style={styles.header}>
         <Text style={styles.titulo}>Detalhes do Pedido</Text>
 
         <Text style={styles.data}>📅 {formatarData(pedido.data)}</Text>
+
+        <Text style={styles.numeroPedido}>Pedido #{pedido.id}</Text>
       </View>
 
-      {/* STATUS */}
+      {/* =====================================================
+          STATUS
+      ====================================================== */}
+
       <View style={styles.statusCard}>
         <Text style={styles.statusTitulo}>Status do pedido</Text>
 
         <Text
-          style={[styles.status, { color: corStatus(pedido.statusPagamento) }]}
+          style={[
+            styles.status,
+            {
+              color: corStatus(pedido.statusPagamento),
+            },
+          ]}
         >
           ● {nomeStatus(pedido.statusPagamento)}
         </Text>
       </View>
 
-      {/* PRODUTOS */}
+      {/* =====================================================
+          PRODUTOS
+      ====================================================== */}
+
       <View style={styles.card}>
         <Text style={styles.secaoTitulo}>🛍️ Produtos</Text>
 
         {pedido.produtos?.map((produto, index) => (
-          <View key={index} style={styles.produto}>
-            <View style={styles.produtoInfo}>
-              <Text style={styles.produtoNome}>{produto.nome}</Text>
+          <View key={index} style={styles.produtoContainer}>
+            <View style={styles.produto}>
+              <View style={styles.produtoInfo}>
+                <Text style={styles.produtoNome}>{produto.nome}</Text>
 
-              <Text style={styles.quantidade}>
-                Quantidade: {produto.quantidade}
+                <Text style={styles.quantidade}>
+                  Quantidade: {produto.quantidade}
+                </Text>
+
+                {/* CÓDIGO DO PRODUTO */}
+
+                {produto.codigo && (
+                  <Text style={styles.codigoProduto}>
+                    Código: {produto.codigo}
+                  </Text>
+                )}
+              </View>
+
+              <Text style={styles.preco}>
+                {formatarPreco(produto.totalVenda)}
               </Text>
             </View>
 
-            <Text style={styles.preco}>
-              {formatarPreco(produto.totalVenda)}
-            </Text>
+            {/* =================================================
+                CERTIFICADO DE GARANTIA
+            ================================================== */}
+
+            {(pedido.statusPagamento === 'pago' ||
+              pedido.statusPagamento === 'aprovado' ||
+              pedido.statusPagamento === 'entregue') && (
+              <TouchableOpacity
+                style={styles.botaoCertificado}
+                activeOpacity={0.8}
+                onPress={() => abrirCertificado(produto)}
+              >
+                <Ionicons
+                  name="shield-checkmark-outline"
+                  size={21}
+                  color="#fff"
+                />
+
+                <Text style={styles.textoCertificado}>
+                  Certificado de Garantia
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         ))}
 
@@ -102,7 +218,10 @@ export default function PedidoDetalhe({ route }) {
         </View>
       </View>
 
-      {/* PAGAMENTO */}
+      {/* =====================================================
+          PAGAMENTO
+      ====================================================== */}
+
       <View style={styles.card}>
         <Text style={styles.secaoTitulo}>💳 Pagamento</Text>
 
@@ -113,7 +232,10 @@ export default function PedidoDetalhe({ route }) {
         </Text>
       </View>
 
-      {/* ENDEREÇO */}
+      {/* =====================================================
+          ENDEREÇO
+      ====================================================== */}
+
       <View style={styles.card}>
         <Text style={styles.secaoTitulo}>📍 Endereço de entrega</Text>
 
@@ -132,7 +254,10 @@ export default function PedidoDetalhe({ route }) {
         </Text>
       </View>
 
-      {/* CLIENTE */}
+      {/* =====================================================
+          CLIENTE
+      ====================================================== */}
+
       <View style={styles.card}>
         <Text style={styles.secaoTitulo}>👤 Cliente</Text>
 
@@ -160,6 +285,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
 
+  // =========================================================
+  // CABEÇALHO
+  // =========================================================
+
   header: {
     backgroundColor: '#111',
     paddingTop: 25,
@@ -181,6 +310,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
+  numeroPedido: {
+    color: '#d4af37',
+    marginTop: 8,
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+
+  // =========================================================
+  // STATUS
+  // =========================================================
+
   statusCard: {
     backgroundColor: '#fff',
     margin: 15,
@@ -200,6 +340,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 
+  // =========================================================
+  // CARDS
+  // =========================================================
+
   card: {
     backgroundColor: '#fff',
     marginHorizontal: 15,
@@ -215,11 +359,18 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
 
+  // =========================================================
+  // PRODUTO
+  // =========================================================
+
+  produtoContainer: {
+    marginBottom: 18,
+  },
+
   produto: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
   },
 
   produtoInfo: {
@@ -238,10 +389,42 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 
+  codigoProduto: {
+    marginTop: 4,
+    color: '#999',
+    fontSize: 12,
+  },
+
   preco: {
     fontWeight: 'bold',
     fontSize: 15,
   },
+
+  // =========================================================
+  // CERTIFICADO
+  // =========================================================
+
+  botaoCertificado: {
+    marginTop: 12,
+    backgroundColor: '#8E3B56',
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  textoCertificado: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+    marginLeft: 8,
+  },
+
+  // =========================================================
+  // TOTAL
+  // =========================================================
 
   linha: {
     height: 1,
@@ -266,6 +449,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#D4AF37',
   },
+
+  // =========================================================
+  // INFORMAÇÕES
+  // =========================================================
 
   info: {
     color: '#888',

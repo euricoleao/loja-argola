@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ToastProvider, useToast } from '../context/ToastContext';
 import AlterarSenhaScreen from '../screens/AlterarSenhaScreen';
 import Carrinho from '../screens/CartScreen';
+import CertificadoGarantiaScreen from '../screens/CertificadoGarantiaScreen';
 import CheckoutScreen from '../screens/CheckoutScreen';
 import ClienteDetalheScreen from '../screens/ClienteDetalheScreen';
 import ClientesScreen from '../screens/ClientesScreen';
@@ -127,7 +128,7 @@ function HomeStack({ setQuantidadeCarrinho }) {
         options={{
           title: 'Detalhes do Produto',
           headerStyle: {
-            backgroundColor: '#caa89a',
+            backgroundColor: '#e6bec8',
           },
           headerTitleStyle: {
             fontWeight: 'bold',
@@ -341,6 +342,23 @@ function PerfilStack() {
       />
       <Stack.Screen name="TermosUso" component={TermosUsoScreen} />
       <Stack.Screen name="SobreAplicativo" component={SobreAplicativoScreen} />
+
+      <Stack.Screen
+        name="CertificadoGarantia"
+        component={CertificadoGarantiaScreen}
+        options={{
+          title: 'Certificado de Garantia',
+          headerStyle: {
+            backgroundColor: '#fdf2f5',
+          },
+          headerTitleStyle: {
+            fontWeight: 'bold',
+            fontSize: 18,
+            color: '#732B45',
+          },
+          headerTintColor: '#732B45',
+        }}
+      />
     </Stack.Navigator>
   );
 }
